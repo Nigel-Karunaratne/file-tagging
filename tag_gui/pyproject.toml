@@ -1,0 +1,6 @@
+[project]
+name = "gui_app"
+version = "0.1.0"
+dependencies = [
+    "tags @ path:../tagbinding_py",
+]
