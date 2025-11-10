@@ -1,3 +1,14 @@
+// Files in library
+mod workspace;
+mod tagfile;
+mod errors;
+
+// Public interface for library
+pub use workspace::Workspace;
+pub use errors::TagAddError;
+
+//*******************************************************************/
+// - keep test binding fn for now
 pub fn three_mult(first: u64, second: u64, third: u64) -> u64 {
     first * second * third
 }
