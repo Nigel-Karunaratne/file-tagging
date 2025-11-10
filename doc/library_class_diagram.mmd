@@ -1,0 +1,32 @@
+%% Mermaid Diagram for the tagcore rust library
+
+classDiagram
+direction TB
+    note for Workspace "Must exist for tags to be used"
+    class Workspace {
+        + directory_root : PathBuf
+        + name : String
+	    + all_tagfiles : HashMap of PathBuf to TagFile
+	    + tag_cache : HashSet of Strings
+	    
+        + open_or_create_workspace(path: PathBuf, name: String) Result
+        + add_tag_to_file(file_name: PathBuf, tag: String) Result
+	    + remove_tag_from_file(file_name: PathBuf, tag: String) Result
+	    + query(QueryType)
+    }
+
+    note for TagFile "Cannot exist on its own."
+    note for TagFile "In-Memory Model for Tags for a workspace. Corresponds to .tag_workspace file in each subdir."
+    class TagFile {
+	    - workspace_name : String
+	    - file_name : PathBuf
+
+	    + add_tag_to_file_in_self()
+	    + remove_tag_from_file_in_self()
+    }
+
+    note for WorkspaceWatcher "Only exists if an application sets one up for a workspace. Handles external rename / move."
+    class WorkspaceWatcher {
+    }
+
+    TagFile --* Workspace
