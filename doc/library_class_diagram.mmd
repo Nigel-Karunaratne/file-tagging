@@ -12,6 +12,8 @@ direction TB
         + open_or_create_workspace(path: PathBuf, name: String) Result
         + add_tag_to_file(file_name: PathBuf, tag: String) Result
 	    + remove_tag_from_file(file_name: PathBuf, tag: String) Result
+        + scan_workspace_for_tags() Result
+        + get_all_tags_strings() List of Strings
 	    + query(QueryType)
     }
 
@@ -25,8 +27,20 @@ direction TB
 	    + remove_tag_from_file_in_self()
     }
 
+    note for Tag "Enum"
+    class Tag {}
+    class Simple {value: String}
+    class KV {
+        key: String
+        value: String
+    }
+
+    Simple --|> Tag
+    KV --|> Tag
+
     note for WorkspaceWatcher "Only exists if an application sets one up for a workspace. Handles external rename / move."
     class WorkspaceWatcher {
     }
 
     TagFile --* Workspace
+    Tag --* TagFile

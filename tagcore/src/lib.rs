@@ -2,6 +2,7 @@
 mod workspace;
 mod tagfile;
 mod errors;
+mod tag;
 
 // Public interface for library
 pub use workspace::Workspace;
