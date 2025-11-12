@@ -2,13 +2,15 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum WorkspaceError {
-    InvalidName(String)
+    InvalidName(String),
+    FileUnavailable(String)
 }
 
 impl fmt::Display for WorkspaceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             WorkspaceError::InvalidName(name) => write!(f, "Workspace name is invalid: {}", name),
+            WorkspaceError::FileUnavailable(name) => write!(f, "Cannot open/create workspace file: {}", name),
         }
     }
 }
