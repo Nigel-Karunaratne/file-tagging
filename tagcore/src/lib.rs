@@ -4,6 +4,8 @@ mod tagfile;
 mod errors;
 mod tag;
 
+extern crate tempdir;
+
 // Public interface for library
 pub use workspace::Workspace;
 pub use errors::TagAddError;
@@ -21,6 +23,6 @@ mod tests {
     #[test]
     fn it_works() {
         let result = three_mult(2, 7, 8);
-        assert_eq!(result, 52);
+        assert_eq!(result, 112);
     }
 }
