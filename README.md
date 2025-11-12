@@ -13,5 +13,7 @@ A project for file tagging, consisting of:
 - Create a python virtual environment
 - Install the following `pip` packages:
     - maturin
+    - pyinstall
+    - PyQt5
 
 To create the bindings in tagbinding_py, run `maturin develop`.
