@@ -23,12 +23,16 @@ direction TB
 	    - workspace_name : String
 	    - file_name : PathBuf
 
+        + from_file_in_dir(path: Path) TagFile
+
 	    + add_tag_to_file_in_self()
 	    + remove_tag_from_file_in_self()
     }
 
     note for Tag "Enum"
-    class Tag {}
+    class Tag {
+
+    }
     class Simple {value: String}
     class KV {
         key: String
