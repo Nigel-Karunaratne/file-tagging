@@ -7,6 +7,16 @@ pub enum Tag {
 	KV(String, String)
 }
 
+impl PartialEq for Tag {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Simple(left), Self::Simple(right)) => left == right,
+            (Self::KV(l0, l1), Self::KV(r0, r1)) => l0 == r0 && l1 == r1,
+            _ => false,
+        }
+    }
+}
+
 /// Custom deserialization for Tag Struct, so that the desired output can be created
 impl<'de> Deserialize<'de> for Tag {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
