@@ -2,14 +2,15 @@ use std::{
     collections::{HashMap, HashSet}, fs::File, path::{Path, PathBuf}
 };
 
-use crate::{errors::WorkspaceError, tagfile::TagFile};
-use crate::errors::TagAddError;
+use crate::{
+    errors::{WorkspaceError, TagFileError}, tag::Tag, tagfile::TagFile
+};
 
 #[derive(Debug)]
 pub struct Workspace {
     root_folder: PathBuf,
     name: String,
-    all_tagfiles: HashMap<PathBuf, TagFile>,
+    all_tagfiles: HashMap<PathBuf, TagFile>, //Mapping from DIRECTORY PATHS to in-memory TagFiles
     tags_cache: HashSet<String>
 }
 
@@ -59,20 +60,31 @@ impl Workspace {
         }
     }
 
-    pub fn add_tag_to_file(&mut self, path_to_file: PathBuf, tag: String) -> Result<(), TagAddError> {
-        let parent_dir: &Path = path_to_file.parent().ok_or(TagAddError::InvalidPath())?;
+    pub fn add_tag_to_file(&mut self, path_to_file: PathBuf, tag_1: String, tag_2: Option<String>) -> Result<(), TagFileError> {
+        let parent_dir: &Path = path_to_file.parent().ok_or(TagFileError::BadPath("Invalid Path".to_string()))?;
         // let file_name = path_to_file.file_name().ok_or(TagAddError::InvalidPath())?;
 
+        let tag: Tag = if tag_2.is_none() {
+            Tag::Simple(tag_1.clone()) //clone so that tag_cache can update with original strings
+        }
+        else {
+            Tag::KV(tag_1.clone(), tag_2.clone().unwrap())
+        };
+
         if let Some(tf) = self.all_tagfiles.get_mut(parent_dir) {
-            tf.add_tag_to_file_in_self(&path_to_file, &tag);
+            //takes ownership of the Tag enum. Will return any errors because of '?'
+            tf.add_tag_to_file_in_self(&path_to_file, tag)?;
         }
         else {
             // TODO - Create file
         }
 
-        // Check if tag is in memory-cache, if not, add to cache. only add to cache if TagFile open/create was successful
-        if !self.tags_cache.contains(&tag) {
-            self.tags_cache.insert(tag);
+        // Check if tag is in memory-cache, if not, add to cache. Since down here, only add to cache if TagFile open/create was successful
+        if !self.tags_cache.contains(&tag_1) {
+            self.tags_cache.insert(tag_1);
+        }
+        if tag_2.as_ref().is_some_and(|t| self.tags_cache.contains(t)) {
+            self.tags_cache.insert(tag_2.unwrap());
         }
 
         Ok(())
@@ -113,11 +125,12 @@ impl Workspace {
         !name.chars().any(|c| invalid_workspace_name_chars.contains(c) || c.is_uppercase())
     }
     
+    ///Returns the file name of a workspace file, given a name
     fn get_workspace_file_name(name: &String) -> String {
         format!(".tagwksp_{}",name)
     }
 
-    //Opens a .tagwksp file. The file is just a flag file.
+    /// Opens a .tagwksp file. The file is just a flag file.
     fn open_workspace_file(full_path_to_file: &Path) -> std::io::Result<()> {
         match File::create(full_path_to_file) {
             Ok(_file) => Ok(()), //ignore the file handle itself

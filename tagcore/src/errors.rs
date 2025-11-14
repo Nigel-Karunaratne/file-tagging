@@ -16,16 +16,18 @@ impl fmt::Display for WorkspaceError {
 }
 
 #[derive(Debug)]
-pub enum TagAddError {
-    InvalidName(String),
-    InvalidPath(),
+pub enum TagFileError {
+    BadPath(String),
+    Serialize(String),
+    Io(std::io::Error)
 }
 
-impl fmt::Display for TagAddError {
+impl fmt::Display for TagFileError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TagAddError::InvalidName(name) => write!(f, "Name is invalid: {}", name),
-            TagAddError::InvalidPath() => write!(f, "Provided path has no parent"),
+            TagFileError::BadPath(value) => write!(f, "Path error: {}", value),
+            TagFileError::Serialize(value) => write!(f, "Serialization error: {}", value),
+            TagFileError::Io(value) => write!(f, "Encountered IO error: {}", value),
         }
     }
 }

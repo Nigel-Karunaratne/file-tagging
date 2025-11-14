@@ -20,13 +20,14 @@ direction TB
     note for TagFile "Cannot exist on its own."
     note for TagFile "In-Memory Model for Tags for a workspace. Corresponds to .tag_workspace file in each subdir."
     class TagFile {
-	    - workspace_name : String
-	    - file_name : PathBuf
+	    - full_path_to_tagfile : PathBuf
 
         + from_file_in_dir(path: Path) TagFile
 
-	    + add_tag_to_file_in_self()
-	    + remove_tag_from_file_in_self()
+	    + add_tag_to_file_in_self() Result
+	    + remove_tag_from_file_in_self() Result
+
+        - save_to_disk() Result
     }
 
     note for Tag "Enum"
