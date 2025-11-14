@@ -130,6 +130,11 @@ impl Workspace {
         format!(".tagwksp_{}",name)
     }
 
+    /// Returns the file name of a tag file, given a workspace name
+    fn get_tagfile_file_name(workspace_name: &String) -> String {
+        format!(".tag_{}", workspace_name)
+    }
+
     /// Opens a .tagwksp file. The file is just a flag file.
     fn open_workspace_file(full_path_to_file: &Path) -> std::io::Result<()> {
         match File::create(full_path_to_file) {
@@ -137,4 +142,62 @@ impl Workspace {
             Err(_error) => Err(_error)
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_name_valid() {
+        assert_eq!(Workspace::is_name_valid(&"helloworld".to_string()), true);
+        
+        assert_eq!(Workspace::is_name_valid(&"hello world".to_string()), false);
+        assert_eq!(Workspace::is_name_valid(&"aHib".to_string()), false);
+        assert_eq!(Workspace::is_name_valid(&"/".to_string()), false);
+        assert_eq!(Workspace::is_name_valid(&"a/b".to_string()), false);
+        assert_eq!(Workspace::is_name_valid(&"<".to_string()), false);
+    }
+
+    #[test]
+    fn get_workspace_file_name() {
+        assert_eq!(Workspace::get_workspace_file_name(&"name".to_string()), ".tagwksp_name".to_string());
+        assert_eq!(Workspace::get_workspace_file_name(&"a_b_c".to_string()), ".tagwksp_a_b_c".to_string());
+        assert_eq!(Workspace::get_workspace_file_name(&"12345".to_string()), ".tagwksp_12345".to_string());
+    }
+
+    #[test]
+    fn open_workspace_file() {
+        // TODO
+        use tempdir::TempDir;
+        let root_dir = TempDir::new("test").unwrap();
+        let result = Workspace::open_workspace_file(root_dir.path().join("foo/\\bar").as_path());
+        assert!(result.is_err());
+        // assert_eq!(result.unwrap_err().kind(), std::io::ErrorKind::InvalidFilename);
+        
+        todo!()
+    }
+
+    #[test]
+    fn workspace_create() {
+        use tempdir::TempDir;
+        let root_dir = TempDir::new("prefix").unwrap();
+        let _workspace_1: Result<Workspace, WorkspaceError> = Workspace::open_or_create_workspace(root_dir.path().to_path_buf(), "hello".to_string());
+
+        assert!(_workspace_1.is_ok());
+        assert!(root_dir.path().join(".tagwksp_hello").exists());
+    }
+
+    #[test]
+    fn workspace_open() {
+        use tempdir::TempDir;
+        let root_dir: TempDir = TempDir::new("prefix_root").unwrap();
+        {
+            let _ = Workspace::open_or_create_workspace(root_dir.path().to_path_buf(), "active_space".to_string());
+        }
+        let workspace_1 = Workspace::open_or_create_workspace(root_dir.path().to_path_buf(), "active_space".to_string());
+
+        assert!(workspace_1.is_ok());
+    }
+
 }
