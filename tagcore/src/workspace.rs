@@ -64,6 +64,7 @@ impl Workspace {
         }
     }
 
+    /// Adds the given string(s) as a tag to a file.
     pub fn add_tag_to_file(&mut self, path_to_file: PathBuf, tag_1: String, tag_2: Option<String>) -> Result<(), TagFileError> {
         let parent_dir: &Path = path_to_file.parent().ok_or(TagFileError::BadPath("Invalid Path".to_string()))?;
         // let file_name = path_to_file.file_name().ok_or(TagAddError::InvalidPath())?;
@@ -91,6 +92,25 @@ impl Workspace {
             self.tags_cache.insert(tag_2.unwrap());
         }
 
+        Ok(())
+    }
+
+    /// Removes the given string(s) as a tag from a file. If the file does not have the tag/any tags, does nothing.
+    pub fn remove_tag_from_file(&mut self, path_to_file: PathBuf, tag_1: String, tag_2: Option<String>) -> Result<(), TagFileError> {
+        let parent_dir: &Path = path_to_file.parent().ok_or(TagFileError::BadPath("Invalid Path".to_string()))?;
+        let tag: Tag = if tag_2.is_none() {
+            Tag::Simple(tag_1.clone()) //clone so that tag_cache can update with original strings
+        }
+        else {
+            Tag::KV(tag_1.clone(), tag_2.clone().unwrap())
+        };
+
+        // If tagfile exists, attempt to remove tag. If no tagfile, silently do nothing.
+        if let Some(tf) = self.all_tagfiles.get_mut(parent_dir) {
+            tf.remove_tag_from_file_in_self(&path_to_file, &tag)?;
+        }
+
+        // No need to "rebuild" tag cache as tag may need to be used elsewhere... just return
         Ok(())
     }
 
@@ -179,7 +199,7 @@ mod tests {
         assert!(result.is_err());
         // assert_eq!(result.unwrap_err().kind(), std::io::ErrorKind::InvalidFilename);
         
-        todo!()
+        // todo!()
     }
 
     #[test]
