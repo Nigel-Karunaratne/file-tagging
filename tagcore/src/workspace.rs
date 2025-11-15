@@ -47,11 +47,15 @@ impl Workspace {
         let root_folder: String = self.root_folder.to_str().unwrap().to_string();
         for entry in WalkDir::new(root_folder).into_iter().filter_map(|e| e.ok()) { //Ignores un-owned files
             // Check if TagFile exists in directory
-            let full_path = entry.path().join(format!(".tag_{}", self.name));
+            let full_path = entry.path().join(Workspace::get_tagfile_file_name(&self.name));
             if full_path.exists() {
                 //REVIEW - If tag path is IN all_tagfiles hashmap, remove from hasmap and re-serialize it?
                 
-                let tf: TagFile = TagFile::from_file_in_dir(entry.path());
+                let tf: TagFile = match TagFile::from_file_in_dir(entry.path()) {
+                    Ok(tf) => tf,
+                    Err(_) => continue, //Cannot create TagFile = Skip
+                };
+
                 self.tags_cache.extend(tf.get_all_tags());
 
                 //add tagfile to workspace's set. This moves the TagFile.
