@@ -1,5 +1,5 @@
 #[pyo3::pymodule]
-mod tags {
+mod rs_tags {
     use tagcore;
     use pyo3::{PyResult, create_exception, prelude::*, pyclass, types::PyType};
 
