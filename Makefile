@@ -3,4 +3,4 @@
 .PHONY: setup
 setup:
 	python -m venv .venv
-	source .venv/Scripts/activate && pip install maturin pyinstall PyQt5
+	source .venv/Scripts/activate && pip install maturin pyinstall pyside6
