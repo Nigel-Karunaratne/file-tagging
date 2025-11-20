@@ -3,7 +3,7 @@ mod rs_tags {
     use tagcore;
     use pyo3::{PyResult, create_exception, prelude::*, pyclass, types::PyType};
 
-    create_exception!(tags, PyTagError, pyo3::exceptions::PyException);
+    create_exception!(rs_tags, PyTagError, pyo3::exceptions::PyException);
 
     #[pyclass]
     struct TagWorkspace {
