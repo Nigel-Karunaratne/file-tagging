@@ -20,14 +20,12 @@ def main():
     # Create the application
     app = QApplication(sys.argv)
     
-    # Create the app model
-    app_model = ApplicationModel(app_cwd)
-
     # Create the root widget / view
     view = MainWindow()
     view.resize(800, 650)
 
-    # TODO - create controller
+    # TODO - create controller? Or have View just own the model?
+    # Use 1 model (files + tags)? Or have 2 models, where QFileSystemModel references other?
     
     # Show window
     view.show()
