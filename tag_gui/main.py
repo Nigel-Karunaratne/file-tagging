@@ -1,10 +1,10 @@
 import sys
 import os
 
-from view.file_explorer_widget import FileExplorerWidget
 from model.application_model import ApplicationModel
 
 from PySide6.QtWidgets import QApplication
+from view.main_window import MainWindow
 
 def main():
     # Handle command-line args
@@ -24,7 +24,8 @@ def main():
     app_model = ApplicationModel(app_cwd)
 
     # Create the root widget / view
-    view = FileExplorerWidget()
+    view = MainWindow()
+    view.resize(800, 650)
 
     # TODO - create controller
     
