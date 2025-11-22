@@ -1,8 +1,6 @@
 import sys
 import os
 
-from model.application_model import ApplicationModel
-
 from PySide6.QtWidgets import QApplication
 from view.main_window import MainWindow
 

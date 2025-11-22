@@ -17,10 +17,15 @@ class FileExplorerModel(QFileSystemModel):
     def data(self, index, role: int = Qt.ItemDataRole.DisplayRole):
         if not index.isValid():
             return None
+        if index.column() > 1:
+            return None
         
-        if index.column() == 1 and role == Qt.ItemDataRole.DisplayRole:
-            file_name = self.fileName(index.siblingAtColumn(0))
-            return self.current_dir_tags.get(file_name)
+        if index.column() == 1:
+            if role == Qt.ItemDataRole.DisplayRole:
+                file_name = self.fileName(index.siblingAtColumn(0))
+                return self.current_dir_tags.get(file_name)
+            elif role == Qt.ItemDataRole.TextAlignmentRole:
+                return Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         else:
             return super().data(index, role)
     

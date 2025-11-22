@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
 from model.file_explorer_model import FileExplorerModel
 
 import os
+import sys, subprocess # For opening files w/ OS's default program
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -85,16 +86,13 @@ class FilesTab(QWidget):
         self.right_file_hierarchy.setItemsExpandable(False)
         self.right_file_hierarchy.setRootIsDecorated(False)
         header = self.right_file_hierarchy.header()
-        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(0,QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(1,QHeaderView.ResizeMode.ResizeToContents)
+        header.setMinimumSectionSize(50)
+        self.right_file_hierarchy.setColumnWidth(0, 250)
         self.right_file_hierarchy.doubleClicked.connect(self._on_file_folder_double_click)
 
-
-        """"""
-
-        # right_file_hierarchy.setColumnWidth(0, 250)
-        # right_file_hierarchy.setHeaderHidden(False)
-        
-        # right_file_hierarchy = QLabel("right")
+        # self.right_file_hierarchy.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         splitter_root.addWidget(self.left_file_hierarchy)
         splitter_root.addWidget(self.right_file_hierarchy)
@@ -104,12 +102,19 @@ class FilesTab(QWidget):
 
     def _on_file_folder_double_click(self, index: QModelIndex):
         name = index.siblingAtColumn(0)
-        print(f"NAME: {name}")
+        file_path = self.model.filePath(name)
         if self.model.isDir(name):
             file_name = self.model.fileName(name)
-            file_path = self.model.filePath(name)
             self.model.set_directory(file_path)
             self.right_file_hierarchy.setRootIndex(self.model.index(file_path))
+        elif self.model.fileInfo(name).isFile():
+            # Platform-Specific code for opening a file
+            if sys.platform.startswith("win"): # WINDOWS
+                os.startfile(file_path)
+            elif sys.platform.startswith("darwin"): # MAC
+                subprocess.run(["open", file_path])
+            else: # ASSUME LINUX
+                subprocess.run(["xdg-open", file_path])
         return
     
     def _on_directory_up_btn_clicked(self):
