@@ -39,7 +39,7 @@ mod rs_tags {
         }
 
         #[getter]
-        pub fn kv_value(&self) -> Option<String> {
+        pub fn simple_value(&self) -> Option<String> {
             match &self.inner {
                 tagcore::Tag::Simple(v) => Some(v.clone()),
                 _ => None,
@@ -55,7 +55,7 @@ mod rs_tags {
         }
 
         #[getter]
-        pub fn simple_val(&self) -> Option<String> {
+        pub fn kv_value(&self) -> Option<String> {
             match &self.inner {
                 tagcore::Tag::KV(_, v) => Some(v.clone()),
                 _ => None,
