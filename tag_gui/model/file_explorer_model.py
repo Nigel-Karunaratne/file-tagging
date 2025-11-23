@@ -38,9 +38,9 @@ class FileExplorerModel(QFileSystemModel):
                     return "Tags"
         return super().headerData(section, orientation, role)
 
-    def set_directory(self, new_directory_path):
+    def set_directory(self, new_directory_path, tag_model):
         print("CHANIGN PATHS")
         self.current_directory = new_directory_path
         #self.current_dir_tags = {"file1.txt", "None"}
-        self.current_dir_tags["file1.txt"] = "No tags a"
+        self.current_dir_tags = tag_model.get_tag_mapping_in_dir_as_strings(new_directory_path)
         self.setRootPath(new_directory_path)
