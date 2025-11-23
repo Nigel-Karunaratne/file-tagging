@@ -30,6 +30,39 @@ mod rs_tags {
             }
         }
 
+        pub fn is_simple(&self) -> bool {
+            matches!(self.inner, tagcore::Tag::Simple(_))
+        }
+
+        pub fn is_kv(&self) -> bool {
+            matches!(self.inner, tagcore::Tag::KV(_, _))
+        }
+
+        #[getter]
+        pub fn kv_value(&self) -> Option<String> {
+            match &self.inner {
+                tagcore::Tag::Simple(v) => Some(v.clone()),
+                _ => None,
+            }
+        }
+
+        #[getter]
+        pub fn kv_key(&self) -> Option<String> {
+            match &self.inner {
+                tagcore::Tag::KV(k, _) => Some(k.clone()),
+                _ => None,
+            }
+        }
+
+        #[getter]
+        pub fn simple_val(&self) -> Option<String> {
+            match &self.inner {
+                tagcore::Tag::KV(_, v) => Some(v.clone()),
+                _ => None,
+            }
+        }
+
+
         fn __repr__(&self) -> PyResult<String> {
             Ok(match &self.inner {
                 tagcore::Tag::Simple(v) => format!("Tag.Simple({:?})", v),
