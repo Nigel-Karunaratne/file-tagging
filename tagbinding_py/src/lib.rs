@@ -6,6 +6,45 @@ mod rs_tags {
     create_exception!(rs_tags, PyTagError, pyo3::exceptions::PyException);
 
     #[pyclass]
+    struct Tag {
+        inner: tagcore::Tag,
+    }
+
+    #[pymethods]
+    impl Tag {
+        #[classmethod]
+        pub fn simple(_class: Bound<PyType>, value: String) -> Self {
+            Tag { inner: tagcore::Tag::Simple(value) }
+        }
+
+        #[classmethod]
+        pub fn kv(_class: Bound<PyType>, key: String, value: String) -> Self {
+            Tag { inner: tagcore::Tag::KV(key, value) }
+        }
+
+        #[getter]
+        pub fn kind(&self) -> &str {
+            match self.inner {
+                tagcore::Tag::Simple(_) => "Simple",
+                tagcore::Tag::KV(_, _) => "KV",
+            }
+        }
+
+        fn __repr__(&self) -> PyResult<String> {
+            Ok(match &self.inner {
+                tagcore::Tag::Simple(v) => format!("Tag.Simple({:?})", v),
+                tagcore::Tag::KV(k, v) => format!("Tag.KV({:?}, {:?})", k, v),
+            })
+        }
+    }
+
+    impl From<tagcore::Tag> for Tag {
+        fn from(tag: tagcore::Tag) -> Self {
+            Tag { inner: tag }
+        }
+    }
+
+    #[pyclass]
     struct TagWorkspace {
         inner: tagcore::Workspace,
     }
@@ -13,7 +52,7 @@ mod rs_tags {
     #[pymethods]
     impl TagWorkspace {
         #[classmethod]
-        fn open_or_create_workspace(_class: Bound<PyType>, directory: std::path::PathBuf, name: String) -> PyResult<Self> {
+        pub fn open_or_create_workspace(_class: Bound<PyType>, directory: std::path::PathBuf, name: String) -> PyResult<Self> {
             let x = tagcore::Workspace::open_or_create_workspace(directory, name);
             match x {
                 Ok(x) => Ok(TagWorkspace {inner: x}),
@@ -21,16 +60,21 @@ mod rs_tags {
             }
         }
 
-        fn scan_for_tagfiles(&mut self) {
+        pub fn scan_for_tagfiles(&mut self) {
             self.inner.scan_for_tagfiles();
         }
 
-        fn add_tag_to_file(&mut self, path_to_file: std::path::PathBuf, tag_1: String, tag_2: Option<String>) -> PyResult<()> {
+        pub fn add_tag_to_file(&mut self, path_to_file: std::path::PathBuf, tag_1: String, tag_2: Option<String>) -> PyResult<()> {
             self.inner.add_tag_to_file(path_to_file, tag_1, tag_2).map_err(|e| PyTagError::new_err(e.to_string()))
         }
 
-        fn remove_tag_from_file(&mut self, path_to_file: std::path::PathBuf, tag_1: String, tag_2: Option<String>) -> PyResult<()> {
+        pub fn remove_tag_from_file(&mut self, path_to_file: std::path::PathBuf, tag_1: String, tag_2: Option<String>) -> PyResult<()> {
             self.inner.remove_tag_from_file(path_to_file, tag_1, tag_2).map_err(|e| PyTagError::new_err(e.to_string()))
+        }
+
+        pub fn get_tags_for_file_name(&self, full_path_to_file: std::path::PathBuf) -> PyResult<Vec<Tag>> {
+            let rval = self.inner.get_tags_for_file_name(full_path_to_file).map_err(|e| PyTagError::new_err(e.to_string()))?;
+            Ok(rval.into_iter().map(Tag::from).collect())
         }
     }
 }

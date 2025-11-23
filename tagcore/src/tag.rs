@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 
 /// Enum for a Tag, which can either be a single String (Simple) or a 2-tuple of Strings (KV)
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Tag {
 	Simple(String),
 	KV(String, String)
