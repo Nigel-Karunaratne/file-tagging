@@ -8,14 +8,26 @@ use crate::{errors::TagFileError, tag::Tag};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TagFile {
     #[serde(skip)]
-    full_path_to_tagfile: PathBuf,
+    pub full_path_to_tagfile: PathBuf,
 
     mapping: HashMap<String, Vec<Tag>>
 }
 
 impl TagFile {
+    /// Loads a TagFile from disk and returns it.
     pub fn from_file_in_dir(path_to_tagfile_file: &Path) -> Result<TagFile, TagFileError> {
         return TagFile::load_tagfile_from_disk(&path_to_tagfile_file);
+    }
+
+    /// Creates an empty TagFile and saves it to disk
+    pub fn empty(path_to_tagfile_file: PathBuf) -> Result<TagFile, TagFileError> {
+        let tf = TagFile {
+            full_path_to_tagfile: path_to_tagfile_file,
+            mapping: HashMap::new(),
+        };
+
+        tf.save_tagfile_to_disk()?;
+        return Ok(tf);
     }
 
     // TODO - assumes path to file is valid
@@ -68,6 +80,23 @@ impl TagFile {
         self.save_tagfile_to_disk()
     }
 
+    pub fn get_all_tags_for_filename(&self, file_name: &String) -> Vec<Tag> {
+        if let Some(vec_tags) = self.mapping.get(file_name) {
+            // vec_tags.iter().for_each(|tag| {
+            //     match tag {
+            //         Tag::Simple(x) => return_val.insert(x.to_string()),
+            //         Tag::KV(k, v) => {
+            //             return_val.insert(k.to_string());
+            //             return_val.insert(v.to_string())
+            //         }
+            //     };
+            // });
+            vec_tags.clone()
+        } else {
+            Vec::<Tag>::new()
+        }
+    }
+
     pub fn get_all_tags(&self) -> HashSet<String> {
         let mut ret: HashSet<String> = HashSet::<String>::new();
         self.mapping.values().for_each(|vec | vec.iter().for_each(|tag| {
@@ -80,7 +109,7 @@ impl TagFile {
             };
         }));
 
-        ret.clone()
+        ret
     }
 }
 
@@ -104,8 +133,8 @@ impl TagFile {
         Ok(())
     }
 
-    fn load_tagfile_from_disk(path_to_tagfile_file: &Path) -> Result<TagFile, TagFileError> {
-        let mut file: File = match File::open(path_to_tagfile_file) {
+    fn load_tagfile_from_disk(full_path_to_tagfile_file: &Path) -> Result<TagFile, TagFileError> {
+        let mut file: File = match File::open(full_path_to_tagfile_file) {
             Ok(file) => file,
             Err(err) => return Err(TagFileError::Io(err))
         };
@@ -115,13 +144,13 @@ impl TagFile {
             Ok(_) => (),
             Err(err) => return Err(TagFileError::Io(err)),
         }
-        
+
         let mut tf = match toml::from_str::<TagFile>(contents.as_str()) {
             Ok(tf) => tf,
             Err(_) => return Err(TagFileError::Serialize("Cannot Deserailize TagFile".to_string())),
         };
 
-        tf.full_path_to_tagfile = path_to_tagfile_file.to_path_buf();
+        tf.full_path_to_tagfile = full_path_to_tagfile_file.to_path_buf();
         Ok(tf)
     }
 }
