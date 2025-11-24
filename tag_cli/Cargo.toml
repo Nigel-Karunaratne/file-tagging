@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 tagcore = { path = "../tagcore" }
+clap = { version = "4", features = ["derive"] }
+directories = "6.0.0"
