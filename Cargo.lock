@@ -269,6 +269,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "tag_cli"
+version = "0.1.0"
+dependencies = [
+ "tagcore",
+]
+
+[[package]]
 name = "tagbinding_py"
 version = "0.1.0"
 dependencies = [
