@@ -109,6 +109,36 @@ mod rs_tags {
             let rval = self.inner.get_tags_for_file_name(full_path_to_file).map_err(|e| PyTagError::new_err(e.to_string()))?;
             Ok(rval.into_iter().map(Tag::from).collect())
         }
+
+        pub fn get_name(&self) -> &str {
+            self.inner.get_name()
+        }
+
+        pub fn query_exact(&self, text: &str, simple: bool, key: bool, value: bool) -> std::collections::HashMap<String, Vec<Tag>> {
+            let result = self.inner.query_exact(text, simple, key, value);
+            let mut rv: std::collections::HashMap<String, Vec<Tag>> = std::collections::HashMap::new();
+            for (fname, vector) in result {
+                let v = vector.into_iter().map(|item| {
+                    Tag { inner: item }
+                }).collect();
+
+                rv.insert(fname, v);
+            };
+            rv
+        }
+
+        pub fn query_fuzzy(&self, text: &str, simple: bool, key: bool, value: bool) -> std::collections::HashMap<String, Vec<Tag>> {
+            let result = self.inner.query_fuzzy(text, simple, key, value);
+            let mut rv: std::collections::HashMap<String, Vec<Tag>> = std::collections::HashMap::new();
+            for (fname, vector) in result {
+                let v = vector.into_iter().map(|item| {
+                    Tag { inner: item }
+                }).collect();
+
+                rv.insert(fname, v);
+            };
+            rv
+        }
     }
 }
 

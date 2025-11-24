@@ -57,7 +57,7 @@ impl Workspace {
                     Err(_) => continue, //Cannot create TagFile = Skip
                 };
 
-                self.tags_cache.extend(tf.get_all_tags());
+                self.tags_cache.extend(tf.get_all_tags_string());
 
                 //add tagfile to workspace's set. This moves the TagFile.
                 self.all_tagfiles.insert(full_path.to_path_buf().canonicalize().unwrap_or(full_path.to_path_buf()), tf);
@@ -67,7 +67,12 @@ impl Workspace {
 
     /// Adds the given string(s) as a tag to a file.
     pub fn add_tag_to_file(&mut self, path_to_file: PathBuf, tag_1: String, tag_2: Option<String>) -> Result<(), TagFileError> {
-        let parent_dir: &Path = path_to_file.parent().ok_or(TagFileError::BadPath("Invalid Path".to_string()))?;
+        // println!("START: adding tag to a file");
+        // println!("This is the pathbuf: {:?}", path_to_file);
+        let parent_dir: &Path = path_to_file.parent().ok_or(TagFileError::BadPath("Invalid Path, parent dir".to_string()))?;
+        // let full_parent_dir = std::path::absolute(parent_dir).map_err(|_| TagFileError::BadPath("Invalid Path, canonical dir".to_string()))?;
+        let full_parent_dir = parent_dir.canonicalize().map_err(|_| TagFileError::BadPath("Invalid Path, canonical dir".to_string()))?;
+        
         // let file_name = path_to_file.file_name().ok_or(TagAddError::InvalidPath())?;
 
         let tag: Tag = if tag_2.is_none() {
@@ -77,12 +82,14 @@ impl Workspace {
             Tag::KV(tag_1.clone(), tag_2.clone().unwrap())
         };
 
-        if let Some(tf) = self.all_tagfiles.get_mut(parent_dir) {
+        if let Some(tf) = self.all_tagfiles.get_mut(&full_parent_dir) {
             //takes ownership of the Tag enum. Will return any errors because of '?'
             tf.add_tag_to_file_in_self(&path_to_file, tag)?;
         }
         else {
-            // TODO - Create file
+            let mut tf = TagFile::empty(parent_dir.join(Workspace::get_tagfile_file_name(&self.name)))?;
+            tf.add_tag_to_file_in_self(&path_to_file, tag)?;
+            self.all_tagfiles.insert(full_parent_dir, tf);
         }
 
         // Check if tag is in memory-cache, if not, add to cache. Since down here, only add to cache if TagFile open/create was successful
@@ -130,24 +137,71 @@ impl Workspace {
         }
     }
 
-    //     while let Some(p) = current_path {
-    //         levels_left -= 1;
-    //         if levels_left == 0 {
-    //             break;
-    //         }
+    pub fn get_name(&self) -> &str {
+        &self.name.as_str()
+    }
 
-    //         let tag_file = p.join(".tags");
-    //         if tag_file.exists() {
-    //             return Some(Self {
-    //                 root: p.to_path_buf(),
-    //                 active_tag_file: None
-    //             });
-    //         }
-    //         current_path = p.parent();
-    //     }
+    pub fn query_fuzzy(&self, text: &str, simple: bool, key: bool, value: bool) -> HashMap<String, Vec<Tag>> {
+        let mut rv: HashMap<String, Vec<Tag>> = HashMap::new();
+        for (_path, tf) in &self.all_tagfiles {
+            for (file_name,tags) in tf.get_mapping_ref() {
+                let mut vec: Vec<Tag>= Vec::new();
+                for tag in tags {
+                    match tag {
+                        Tag::Simple(s) => {
+                            if simple && s.contains(text) {
+                                vec.push(tag.clone());
+                            }
+                        },
+                        Tag::KV(k,v) => {
+                            if key && k.contains(text) {
+                                vec.push(tag.clone());
+                            }
+                            if value && v.contains(text) {
+                                vec.push(tag.clone());
+                            }
+                        }
+                    }
+                }
+                if !vec.is_empty() {
+                    // TODO - full filepath?
+                    rv.insert(file_name.clone(), vec);
+                }
+            }
+        }
+        rv
+    }
 
-    //     //if nothing found, return None. TODO - max limit?
-    //     None
+    pub fn query_exact(&self, text: &str, simple: bool, key: bool, value: bool) -> HashMap<String, Vec<Tag>> {
+        let mut rv: HashMap<String, Vec<Tag>> = HashMap::new();
+        for (_path, tf) in &self.all_tagfiles {
+            for (file_name,tags) in tf.get_mapping_ref() {
+                let mut vec: Vec<Tag>= Vec::new();
+                for tag in tags {
+                    match tag {
+                        Tag::Simple(s) => {
+                            if simple && s == text {
+                                vec.push(tag.clone());
+                            }
+                        },
+                        Tag::KV(k,v) => {
+                            if key && k == text {
+                                vec.push(tag.clone());
+                            }
+                            if value && v == text {
+                                vec.push(tag.clone());
+                            }
+                        }
+                    }
+                }
+                if !vec.is_empty() {
+                    // TODO - full filepath?
+                    rv.insert(file_name.clone(), vec);
+                }
+            }
+        }
+        rv
+    }
     
     // }
 }

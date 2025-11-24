@@ -97,7 +97,7 @@ impl TagFile {
         }
     }
 
-    pub fn get_all_tags(&self) -> HashSet<String> {
+    pub fn get_all_tags_string(&self) -> HashSet<String> {
         let mut ret: HashSet<String> = HashSet::<String>::new();
         self.mapping.values().for_each(|vec | vec.iter().for_each(|tag| {
             match tag {
@@ -111,6 +111,11 @@ impl TagFile {
 
         ret
     }
+
+    pub fn get_mapping_ref(&self) -> &HashMap<String, Vec<Tag>> {
+        &self.mapping
+    }
+    
 }
 
 impl TagFile {
