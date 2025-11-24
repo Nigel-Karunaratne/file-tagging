@@ -9,14 +9,16 @@ use crate::{
 #[derive(Debug)]
 pub struct Workspace {
     root_folder: PathBuf,
+    /// The name of the workspace
     name: String,
-    all_tagfiles: HashMap<PathBuf, TagFile>, //Mapping from DIRECTORY PATHS to in-memory TagFiles
+    /// Mapping from DIRECTORY PATHS to in-memory TagFiles. Directory paths ARE CANNONICALIZED
+    all_tagfiles: HashMap<PathBuf, TagFile>,
     tags_cache: HashSet<String>
 }
 
 // Public functions
 impl Workspace {
-    /// Attempts to open a workspace given a directory (a folder) and a workspace name. If no workspace exists in the directory, creates one instead
+    /// Attempts to open a workspace given a directory (a folder) and a workspace name. If no workspace exists in the directory, creates one instead. Validates the workspace name
     pub fn open_or_create_workspace(directory: PathBuf, name: String) -> Result<Workspace, WorkspaceError>{
         if !Workspace::is_name_valid(&name) {
             return Err(WorkspaceError::InvalidName(name));
@@ -50,8 +52,7 @@ impl Workspace {
             let full_path = entry.path().join(Workspace::get_tagfile_file_name(&self.name));
             if full_path.exists() {
                 //REVIEW - If tag path is IN all_tagfiles hashmap, remove from hasmap and re-serialize it?
-                
-                let tf: TagFile = match TagFile::from_file_in_dir(entry.path()) {
+                let tf: TagFile = match TagFile::from_file_in_dir(full_path.as_path()) {
                     Ok(tf) => tf,
                     Err(_) => continue, //Cannot create TagFile = Skip
                 };
@@ -59,7 +60,7 @@ impl Workspace {
                 self.tags_cache.extend(tf.get_all_tags());
 
                 //add tagfile to workspace's set. This moves the TagFile.
-                self.all_tagfiles.insert(full_path.to_path_buf(), tf);
+                self.all_tagfiles.insert(full_path.to_path_buf().canonicalize().unwrap_or(full_path.to_path_buf()), tf);
             }
         }
     }
@@ -114,10 +115,20 @@ impl Workspace {
         Ok(())
     }
 
-    // Creates a workspace using the current directory.
-    // pub fn discover_nearest_workspace_above(path: &Path) -> Option<Self> {
-    //     let mut current_path = Some(path);
-    //     let mut levels_left = 5;
+    pub fn get_tags_for_file_name(&self, full_path_to_file: PathBuf) -> Result<Vec<Tag>, WorkspaceError> {
+        let parent_dir: &Path = &full_path_to_file.parent().ok_or(WorkspaceError::InvalidName("Invalid Path, parent dir".to_string()))?;
+        let full_parent_dir = parent_dir.canonicalize().map_err(|_| WorkspaceError::InvalidName("Invalid Path, canonical dir".to_string()))?;
+        let file_name = full_path_to_file.file_name().ok_or(WorkspaceError::InvalidName("Invalid File Name".to_string()))?;
+        let file_name = file_name.to_str().ok_or(WorkspaceError::InvalidName("Invalid File Name".to_string()))?.to_string();
+
+        if let Some(t) = self.all_tagfiles.get(&full_parent_dir.join(Workspace::get_tagfile_file_name(&self.name))) {
+            // println!("    GET TAGS FOR FILE NAME: SUPER IN");
+            Ok(t.get_all_tags_for_filename(&file_name))
+        }
+        else {
+            Ok(Vec::<Tag>::new())
+        }
+    }
 
     //     while let Some(p) = current_path {
     //         levels_left -= 1;

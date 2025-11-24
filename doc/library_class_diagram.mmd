@@ -15,6 +15,7 @@ direction TB
         + scan_workspace_for_tags() Result
         + get_all_tags_strings() List of Strings
 	    + query(QueryType)
+        + get_tags_for_file_name(path_to_file: PathBuf) Vec of Tag
     }
 
     note for TagFile "Cannot exist on its own."
@@ -26,6 +27,8 @@ direction TB
 
 	    + add_tag_to_file_in_self() Result
 	    + remove_tag_from_file_in_self() Result
+
+        + get_all_tags_for_filename(file_name: String) Vec of Tag
 
         - save_to_disk() Result
     }
