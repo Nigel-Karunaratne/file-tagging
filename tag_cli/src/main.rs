@@ -14,14 +14,14 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Opens a workspace
+    /// Opens a workspace from the current directory
     Open {
         #[arg(short,long)]
         name: String
 
     },
 
-    /// Creates a workspace, if it doesn't exist
+    /// Creates a workspace in the current directory, if it doesn't exist
     Create {
         #[arg(short,long)]
         name: String
@@ -103,7 +103,7 @@ fn load_workspace_from_storage() -> Option<Workspace> {
     let Some(file_name) = file_name.to_str() else {
         return None;
     };
-    return match Workspace::open_or_create_workspace(dir.to_path_buf(), file_name.to_string()) {
+    return match Workspace::open_workspace(dir.to_path_buf(), &file_name.to_string()) {
         Ok(w) => Some(w),
         Err(_) => None,
     };
@@ -136,7 +136,7 @@ fn save_workspace_path_to_storage(workspace: &Workspace) -> bool {
     }
 
     //Write workspace file's path to file
-    let binding = workspace.get_path_to_file();
+    let binding = workspace.get_path_to_workspace_file();
     let Some(file_path) = &binding.to_str() else {
         println!("ERROR: cannot create config file at location '{:?}'", path_to_storage_file);
         return false;
@@ -152,7 +152,7 @@ fn set_open_workspace_file(name: &String) -> () {
     //     println!("ERROR [open]: current directory invalid");
     //     return;
     // };
-    match Workspace::open_or_create_workspace(PathBuf::from("."), name.clone()) {
+    match Workspace::open_workspace(PathBuf::from("."), &name.clone()) {
         Ok(_) => (),
         Err(_x) => {
             // HANDLE ERROR
@@ -163,7 +163,7 @@ fn set_open_workspace_file(name: &String) -> () {
 }
 
 fn create_set_workspace_file(name: &String) {
-    let workspace = match Workspace::open_or_create_workspace(PathBuf::from("."), name.clone()) {
+    let workspace = match Workspace::create_workspace(PathBuf::from("."), &name.clone()) {
         Ok(w) => w,
         Err(_x) => {
             // HANDLE ERROR
