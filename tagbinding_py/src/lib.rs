@@ -121,6 +121,13 @@ mod rs_tags {
             self.inner.get_name()
         }
 
+        pub fn get_path_to_workspace_file(&self) -> PyResult<String> {
+            match self.inner.get_path_to_workspace_file().to_str() {
+                Some(string) => Ok(string.to_string()),
+                None => Err(PyTagError::new_err("Workspace has invalid file name")),
+            }
+        }
+
         pub fn query_exact(&self, text: &str, simple: bool, key: bool, value: bool) -> std::collections::HashMap<String, Vec<Tag>> {
             let result = self.inner.query_exact(text, simple, key, value);
             let mut rv: std::collections::HashMap<String, Vec<Tag>> = std::collections::HashMap::new();
