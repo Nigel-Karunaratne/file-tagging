@@ -37,6 +37,22 @@ impl TagFile {
             return Err(TagFileError::BadPath("Invalid File Name".to_string()));
         };
 
+        match tag {
+            Tag::Simple(ref s) => {
+                if s.trim().is_empty() {
+                    return Err(TagFileError::BadString(s.clone()));
+                }
+            },
+            Tag::KV(ref k,ref v) => {
+                if k.trim().is_empty() {
+                    return Err(TagFileError::BadString(k.clone()));
+                }
+                if v.trim().is_empty() {
+                    return Err(TagFileError::BadString(v.clone()));
+                }
+            }
+        }
+
         // If file is mapped, only add tag to vec if tag not already in vec. If file unmapped, create a mapping w/ tag
         if self.mapping.contains_key(file_name) {
             if !self.mapping[file_name].contains(&tag) {
@@ -116,6 +132,9 @@ impl TagFile {
         &self.mapping
     }
     
+    pub fn get_tagfile_owning_dir(&self) -> Option<&Path> {
+        self.full_path_to_tagfile.parent()
+    }
 }
 
 impl TagFile {
@@ -375,6 +394,19 @@ file2 = [["Due", "Today"], "Hi"]
 "secondfile.c" = [["DUE", "tomorrow"]]
 "#;
         assert!(contents == possible_string_1 || contents == possible_string_2);
+
+        let result = tf.add_tag_to_file_in_self(&path_to_file, Tag::Simple("".to_string()));
+        assert!(result.is_err());
+        let result = tf.add_tag_to_file_in_self(&path_to_file, Tag::Simple(" ".to_string()));
+        assert!(result.is_err());
+        let result = tf.add_tag_to_file_in_self(&path_to_file, Tag::KV("".to_string(), "value".to_string()));
+        assert!(result.is_err());
+        let result = tf.add_tag_to_file_in_self(&path_to_file, Tag::KV(" ".to_string(), "value".to_string()));
+        assert!(result.is_err());
+        let result = tf.add_tag_to_file_in_self(&path_to_file, Tag::KV("key".to_string(), "".to_string()));
+        assert!(result.is_err());
+        let result = tf.add_tag_to_file_in_self(&path_to_file, Tag::KV("key".to_string(), " ".to_string()));
+        assert!(result.is_err());
     }
 
     #[test]

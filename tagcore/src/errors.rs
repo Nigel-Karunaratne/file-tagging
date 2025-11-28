@@ -18,6 +18,7 @@ impl fmt::Display for WorkspaceError {
 #[derive(Debug)]
 pub enum TagFileError {
     BadPath(String),
+    BadString(String),
     Serialize(String),
     Io(std::io::Error)
 }
@@ -26,6 +27,7 @@ impl fmt::Display for TagFileError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TagFileError::BadPath(value) => write!(f, "Path error: {}", value),
+            TagFileError::BadString(value) => write!(f, "Provided Tag Value '{}' is invalid", value),
             TagFileError::Serialize(value) => write!(f, "Serialization error: {}", value),
             TagFileError::Io(value) => write!(f, "Encountered IO error: {}", value),
         }
