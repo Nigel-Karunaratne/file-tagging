@@ -101,14 +101,14 @@ impl Workspace {
             Tag::KV(tag_1.clone(), tag_2.clone().unwrap())
         };
 
-        if let Some(tf) = self.all_tagfiles.get_mut(&full_parent_dir) {
+        if let Some(tf) = self.all_tagfiles.get_mut(&full_parent_dir.join(Workspace::get_tagfile_file_name(&self.name))) {
             //takes ownership of the Tag enum. Will return any errors because of '?'
             tf.add_tag_to_file_in_self(&path_to_file, tag)?;
         }
         else {
             let mut tf = TagFile::empty(parent_dir.join(Workspace::get_tagfile_file_name(&self.name)))?;
             tf.add_tag_to_file_in_self(&path_to_file, tag)?;
-            self.all_tagfiles.insert(full_parent_dir, tf);
+            self.all_tagfiles.insert(full_parent_dir.join(Workspace::get_tagfile_file_name(&self.name)), tf);
         }
 
         // Check if tag is in memory-cache, if not, add to cache. Since down here, only add to cache if TagFile open/create was successful
@@ -132,8 +132,9 @@ impl Workspace {
             Tag::KV(tag_1.clone(), tag_2.clone().unwrap())
         };
 
+        let parent_dir_cannonical = parent_dir.canonicalize().map_err(|_| TagFileError::BadPath("Invalid Path, canonical dir".to_string()))?;
         // If tagfile exists, attempt to remove tag. If no tagfile, silently do nothing.
-        if let Some(tf) = self.all_tagfiles.get_mut(parent_dir) {
+        if let Some(tf) = self.all_tagfiles.get_mut(&parent_dir_cannonical.join(Workspace::get_tagfile_file_name(&self.name))) {
             tf.remove_tag_from_file_in_self(&path_to_file, &tag)?;
         }
 
@@ -147,7 +148,8 @@ impl Workspace {
         let file_name = full_path_to_file.file_name().ok_or(WorkspaceError::InvalidName("Invalid File Name".to_string()))?;
         let file_name = file_name.to_str().ok_or(WorkspaceError::InvalidName("Invalid File Name".to_string()))?.to_string();
 
-        if let Some(t) = self.all_tagfiles.get(&full_parent_dir.join(Workspace::get_tagfile_file_name(&self.name))) {
+        let path_to_tagfile = &full_parent_dir.join(Workspace::get_tagfile_file_name(&self.name));
+        if let Some(t) = self.all_tagfiles.get(path_to_tagfile) {
             // println!("    GET TAGS FOR FILE NAME: SUPER IN");
             Ok(t.get_all_tags_for_filename(&file_name))
         }
@@ -158,6 +160,10 @@ impl Workspace {
 
     pub fn get_name(&self) -> &str {
         &self.name.as_str()
+    }
+
+    pub fn get_path_to_workspace_file(&self) -> PathBuf {
+        self.root_folder.join(Workspace::get_workspace_file_name(&self.name))
     }
 
     pub fn query_fuzzy(&self, text: &str, simple: bool, key: bool, value: bool) -> HashMap<String, Vec<Tag>> {
@@ -243,10 +249,18 @@ impl Workspace {
         format!(".tag_{}", workspace_name)
     }
 
+    /// Creates a .tagwksp file. The file is just a flag file. Errors if the file exists.
+    fn create_workspace_file(full_path_to_file: &Path) -> std::io::Result<()> {
+        match File::create_new(full_path_to_file) {
+            Ok(_file) => Ok(()),
+            Err(_error) => Err(_error)
+        }
+    }
+
     /// Opens a .tagwksp file. The file is just a flag file.
     fn open_workspace_file(full_path_to_file: &Path) -> std::io::Result<()> {
-        match File::create(full_path_to_file) {
-            Ok(_file) => Ok(()), //ignore the file handle itself
+        match File::open(full_path_to_file) {
+            Ok(_file) => Ok(()),
             Err(_error) => Err(_error)
         }
     }
@@ -276,21 +290,39 @@ mod tests {
 
     #[test]
     fn open_workspace_file() {
-        // TODO
         use tempdir::TempDir;
         let root_dir = TempDir::new("test").unwrap();
-        let result = Workspace::open_workspace_file(root_dir.path().join("foo/\\bar").as_path());
+        let result = Workspace::open_workspace_file(root_dir.path().join("foo/\\bar<><>").as_path());
         assert!(result.is_err());
-        // assert_eq!(result.unwrap_err().kind(), std::io::ErrorKind::InvalidFilename);
+
+        let _workspace_file_supertest = File::create(root_dir.path().join(".tagwksp_supertest"));
+        let result = Workspace::open_workspace_file(&root_dir.path().join(".tagwksp_supertest"));
+        assert!(result.is_ok());
+
+        let result = Workspace::open_workspace_file(&root_dir.path().join(".tagwksp_dne"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn create_workspace_file() {
+        use tempdir::TempDir;
+        let root_dir = TempDir::new("test").unwrap();
+        let result = Workspace::create_workspace_file(root_dir.path().join("foo/\\bar<><>").as_path());
+        assert!(result.is_err());
+
+        let path = root_dir.path().join(".tagwksp_supertest");
+        let result = Workspace::create_workspace_file(&path);
+        assert!(result.is_ok());
         
-        // todo!()
+        let result = Workspace::create_workspace_file(&path); //same file name = same workspace name
+        assert!(result.is_err());
     }
 
     #[test]
     fn workspace_create() {
         use tempdir::TempDir;
         let root_dir = TempDir::new("prefix").unwrap();
-        let _workspace_1: Result<Workspace, WorkspaceError> = Workspace::open_or_create_workspace(root_dir.path().to_path_buf(), "hello".to_string());
+        let _workspace_1: Result<Workspace, WorkspaceError> = Workspace::create_workspace(root_dir.path().to_path_buf(), &"hello".to_string());
 
         assert!(_workspace_1.is_ok());
         assert!(root_dir.path().join(".tagwksp_hello").exists());
@@ -301,11 +333,169 @@ mod tests {
         use tempdir::TempDir;
         let root_dir: TempDir = TempDir::new("prefix_root").unwrap();
         {
-            let _ = Workspace::open_or_create_workspace(root_dir.path().to_path_buf(), "active_space".to_string());
+            let _ = Workspace::create_workspace(root_dir.path().to_path_buf(), &"active_space".to_string());
         }
-        let workspace_1 = Workspace::open_or_create_workspace(root_dir.path().to_path_buf(), "active_space".to_string());
+        let workspace_1 = Workspace::open_workspace(root_dir.path().to_path_buf(), &"active_space".to_string());
 
         assert!(workspace_1.is_ok());
+
+        let workspace_dne = Workspace::open_workspace(root_dir.path().to_path_buf(), &"does_not_exist".to_string());
+        assert!(workspace_dne.is_err());
+    }
+
+    #[test]
+    fn workspace_open_add_tags_to_file() {
+        use tempdir::TempDir;
+        use std::fs::File;
+
+        // let root_dir: TempDir = TempDir::new_in(".", "test").unwrap();
+        let root_dir: TempDir = TempDir::new("test").unwrap();
+        let root_dir_path = root_dir.path().to_path_buf();
+        
+        let _file1: File = File::create(root_dir_path.join("./file1.txt")).unwrap();
+        assert!(root_dir_path.join("file1.txt").exists());
+
+        let mut workspace = Workspace::create_workspace(root_dir.path().to_path_buf(), &"testspace".to_string()).unwrap();
+
+        let result = workspace.add_tag_to_file(root_dir_path.join("./file1.txt"), "Hello".to_string(), None);
+        assert!(result.is_ok());
+        assert!(root_dir_path.join(".tag_testspace").exists());
+        assert_eq!(workspace.all_tagfiles.len(), 1);
+        assert!(workspace.all_tagfiles.get(&root_dir_path.canonicalize().unwrap().join(".tag_testspace")).is_some());
+
+        let result = workspace.add_tag_to_file(root_dir_path.join("./file2.txt"), "EndAll".to_string(), None);
+        assert!(result.is_ok());
+        assert!(root_dir_path.join(".tag_testspace").exists());
+        assert_eq!(workspace.all_tagfiles.len(), 1);
+        assert!(workspace.all_tagfiles.get(&root_dir_path.canonicalize().unwrap().join(".tag_testspace")).is_some());
+        assert_eq!(workspace.all_tagfiles.get(&root_dir_path.canonicalize().unwrap().join(".tag_testspace")).unwrap().mapping.len(), 2);
+
+        std::fs::create_dir(root_dir_path.join("subfolder/") ).unwrap();
+        let _file2: File = File::create(root_dir_path.join("subfolder/nested.txt")).unwrap(); 
+
+        let result = workspace.add_tag_to_file(root_dir_path.join("subfolder/nested.txt"), "TODO".to_string(), None);
+        assert!(result.is_ok());
+        assert!(root_dir_path.join("subfolder/.tag_testspace").exists());
+        assert_eq!(workspace.all_tagfiles.len(), 2);
+
+        assert!(workspace.all_tagfiles.get(&root_dir_path.join("subfolder").canonicalize().unwrap().join(".tag_testspace")).is_some());
+    }
+
+    #[test]
+    fn workspace_get_tags_for_filename() {
+        use tempdir::TempDir;
+        use std::fs::File;
+
+        let root_dir: TempDir = TempDir::new("test").unwrap();
+        let root_dir_path = root_dir.path().to_path_buf();
+        
+        // Create files
+        let _file1: File = File::create(root_dir_path.join("./file1.txt")).unwrap();
+        let _file2: File = File::create(root_dir_path.join("./file2.txt")).unwrap();
+        std::fs::create_dir(root_dir_path.join("subfolder/") ).unwrap();
+        let _file3: File = File::create(root_dir_path.join("subfolder/nested.txt")).unwrap();
+
+        // Add tags to files
+        let mut workspace = Workspace::create_workspace(root_dir.path().to_path_buf(), &"testspace".to_string()).unwrap();
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file1.txt"), "Hello".to_string(), None);
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file1.txt"), "Hello".to_string(), Some("World".to_string()));
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file2.txt"), "EndAll".to_string(), None);
+        let _ = workspace.add_tag_to_file(root_dir_path.join("subfolder/nested.txt"), "TODO".to_string(), None);
+
+        // Get tags for file names
+        let result = workspace.get_tags_for_file_name(root_dir_path.join("./file1.txt"));
+        // println!("{:?}",result);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], Tag::Simple("Hello".to_string()));
+        assert_eq!(result[1], Tag::KV("Hello".to_string(), "World".to_string()));
+
+        let result = workspace.get_tags_for_file_name(root_dir_path.join("./file2.txt"));
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], Tag::Simple("EndAll".to_string()));
+        
+        let result = workspace.get_tags_for_file_name(root_dir_path.join("./fileDNE.txt"));
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.is_empty());
+
+        let result = workspace.get_tags_for_file_name(root_dir_path.join("./subfolder/nested.txt"));
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], Tag::Simple("TODO".to_string()));
+    }
+
+    #[test]
+    fn workspace_open_remove_tags_from_file() {
+        use tempdir::TempDir;
+        use std::fs::File;
+
+        let root_dir: TempDir = TempDir::new("test").unwrap();
+        let root_dir_path = root_dir.path().to_path_buf();
+        
+        // Create files
+        let _file1: File = File::create(root_dir_path.join("./file1.txt")).unwrap();
+        let _file2: File = File::create(root_dir_path.join("./file2.txt")).unwrap();
+        let _file3: File = File::create(root_dir_path.join("./file3.txt")).unwrap();
+        std::fs::create_dir(root_dir_path.join("subfolder/") ).unwrap();
+        let _file_nested: File = File::create(root_dir_path.join("subfolder/nested.txt")).unwrap();
+
+        // Add tags to files
+        let mut workspace = Workspace::create_workspace(root_dir.path().to_path_buf(), &"testspace".to_string()).unwrap();
+
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file1.txt"), "Hello".to_string(), None);
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file1.txt"), "Hello".to_string(), Some("World".to_string()));
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file2.txt"), "Hello".to_string(), None);
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file2.txt"), "Hello".to_string(), Some("World".to_string()));
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file3.txt"), "A".to_string(), None);
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file4.txt"), "A".to_string(), Some("B".to_string()));
+        let _ = workspace.add_tag_to_file(root_dir_path.join("subfolder/nested.txt"), "TODO".to_string(), None);
+
+
+        // Remove tags from files (REAL TEST)
+        let result = workspace.remove_tag_from_file(root_dir_path.join("./file1.txt"), "Hello".to_string(), None);
+        assert!(result.is_ok());
+        let result = workspace.get_tags_for_file_name(root_dir_path.join("./file1.txt")).unwrap();
+        println!("RESULT: {:?}", result);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], Tag::KV("Hello".to_string(), "World".to_string()));
+
+        let result = workspace.remove_tag_from_file(root_dir_path.join("./file2.txt"), "Hello".to_string(), Some("World".to_string()));
+        assert!(result.is_ok());
+        let result = workspace.get_tags_for_file_name(root_dir_path.join("./file2.txt")).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], Tag::Simple("Hello".to_string()));
+
+        let result = workspace.remove_tag_from_file(root_dir_path.join("./file3.txt"), "A".to_string(), Some("B".to_string()));
+        assert!(result.is_ok());
+        let result = workspace.get_tags_for_file_name(root_dir_path.join("./file3.txt")).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], Tag::Simple("A".to_string()));
+
+        let result = workspace.remove_tag_from_file(root_dir_path.join("./file3.txt"), "A".to_string(), None);
+        assert!(result.is_ok());
+        let result = workspace.get_tags_for_file_name(root_dir_path.join("./file3.txt")).unwrap();
+        assert!(result.is_empty());
+
+        let result = workspace.remove_tag_from_file(root_dir_path.join("./file4.txt"), "A".to_string(), None);
+        assert!(result.is_ok());
+        let result = workspace.get_tags_for_file_name(root_dir_path.join("./file4.txt")).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], Tag::KV("A".to_string(), "B".to_string()));
+
+        let result = workspace.remove_tag_from_file(root_dir_path.join("./file4.txt"), "A".to_string(), Some("B".to_string()));
+        assert!(result.is_ok());
+        let result = workspace.get_tags_for_file_name(root_dir_path.join("./file4.txt")).unwrap();
+        assert!(result.is_empty());
+
+        let result = workspace.remove_tag_from_file(root_dir_path.join("./subfolder/nested.txt"), "TODO".to_string(), None);
+        assert!(result.is_ok());
+        let result = workspace.get_tags_for_file_name(root_dir_path.join("./subfolder/nested.txt")).unwrap();
+        assert!(result.is_empty());
     }
 
 }
