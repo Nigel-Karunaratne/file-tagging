@@ -53,6 +53,11 @@ impl TagFile {
             }
         }
 
+        let tag = match tag {
+            Tag::Simple(s) => Tag::Simple(s.trim().to_string()),
+            Tag::KV(k,v) => Tag::KV(k.trim().to_string(), v.trim().to_string()),
+        };
+
         // If file is mapped, only add tag to vec if tag not already in vec. If file unmapped, create a mapping w/ tag
         if self.mapping.contains_key(file_name) {
             if !self.mapping[file_name].contains(&tag) {
@@ -407,6 +412,22 @@ file2 = [["Due", "Today"], "Hi"]
         assert!(result.is_err());
         let result = tf.add_tag_to_file_in_self(&path_to_file, Tag::KV("key".to_string(), " ".to_string()));
         assert!(result.is_err());
+
+        let path_to_file: PathBuf = test_dir.path().join("three.png");
+        tf.add_tag_to_file_in_self(&path_to_file, Tag::Simple(" hello ".to_string())).unwrap();
+        assert!(tf.mapping.contains_key("three.png"));
+        assert_eq!(tf.mapping["three.png"].len(), 1);
+        assert_eq!(tf.mapping["three.png"][0], Tag::Simple("hello".to_string()));
+
+        tf.add_tag_to_file_in_self(&path_to_file, Tag::KV(" hello ".to_string(), "world".to_string())).unwrap();
+        assert!(tf.mapping.contains_key("three.png"));
+        assert_eq!(tf.mapping["three.png"].len(), 2);
+        assert_eq!(tf.mapping["three.png"][1], Tag::KV("hello".to_string(), "world".to_string()));
+
+        tf.add_tag_to_file_in_self(&path_to_file, Tag::KV("hello_dupe".to_string(), " world ".to_string())).unwrap();
+        assert!(tf.mapping.contains_key("three.png"));
+        assert_eq!(tf.mapping["three.png"].len(), 3);
+        assert_eq!(tf.mapping["three.png"][2], Tag::KV("hello_dupe".to_string(), "world".to_string()));
     }
 
     #[test]

@@ -166,40 +166,66 @@ impl Workspace {
         self.root_folder.join(Workspace::get_workspace_file_name(&self.name))
     }
 
+    /// Searches workspace's open TagFiles for tags whose text is composed of the provided value (whitespace-stripped). Returns a map between relative file paths and a vector of their tags.
     pub fn query_fuzzy(&self, text: &str, simple: bool, key: bool, value: bool) -> HashMap<String, Vec<Tag>> {
+        let text: String = text.to_lowercase();
+        let text: &str = text.trim();
         let mut rv: HashMap<String, Vec<Tag>> = HashMap::new();
         for (_path, tf) in &self.all_tagfiles {
+            let Some(parent_dir_name) = tf.get_tagfile_owning_dir() else {
+                continue;
+            };
+            let Ok(parent_dir_name) = parent_dir_name.canonicalize() else {
+                continue;
+            };
+            let Ok(parent_dir_name) = parent_dir_name.strip_prefix(&self.root_folder) else {
+                continue;
+            };
+            let parent_dir_path = Path::new(".").join(parent_dir_name);
+
             for (file_name,tags) in tf.get_mapping_ref() {
                 let mut vec: Vec<Tag>= Vec::new();
                 for tag in tags {
                     match tag {
                         Tag::Simple(s) => {
-                            if simple && s.contains(text) {
+                            if simple && s.to_lowercase().contains(text) {
                                 vec.push(tag.clone());
                             }
                         },
                         Tag::KV(k,v) => {
-                            if key && k.contains(text) {
+                            if key && k.to_lowercase().contains(text) {
                                 vec.push(tag.clone());
                             }
-                            if value && v.contains(text) {
+                            if value && v.to_lowercase().contains(text) {
                                 vec.push(tag.clone());
                             }
                         }
                     }
                 }
                 if !vec.is_empty() {
-                    // TODO - full filepath?
-                    rv.insert(file_name.clone(), vec);
+                    let used_file_path = parent_dir_path.join(Path::new(&file_name)).to_string_lossy().into_owned();
+                    rv.insert(used_file_path, vec);
                 }
             }
         }
         rv
     }
 
+    /// Searches workspace's open TagFiles for tags whose text matches the provided value. Returns a map between relative file paths and a vector of their tags.
     pub fn query_exact(&self, text: &str, simple: bool, key: bool, value: bool) -> HashMap<String, Vec<Tag>> {
         let mut rv: HashMap<String, Vec<Tag>> = HashMap::new();
         for (_path, tf) in &self.all_tagfiles {
+            let Some(parent_dir_name) = tf.get_tagfile_owning_dir() else {
+                continue;
+            };
+            let Ok(parent_dir_name) = parent_dir_name.canonicalize() else {
+                continue;
+            };
+            let Ok(parent_dir_name) = parent_dir_name.strip_prefix(&self.root_folder) else {
+                continue;
+            };
+            let parent_dir_path = Path::new(".").join(parent_dir_name);
+
             for (file_name,tags) in tf.get_mapping_ref() {
                 let mut vec: Vec<Tag>= Vec::new();
                 for tag in tags {
@@ -220,8 +246,8 @@ impl Workspace {
                     }
                 }
                 if !vec.is_empty() {
-                    // TODO - full filepath?
-                    rv.insert(file_name.clone(), vec);
+                    let used_file_path = parent_dir_path.join(Path::new(&file_name)).to_string_lossy().into_owned();
+                    rv.insert(used_file_path, vec);
                 }
             }
         }
@@ -379,6 +405,20 @@ mod tests {
         assert_eq!(workspace.all_tagfiles.len(), 2);
 
         assert!(workspace.all_tagfiles.get(&root_dir_path.join("subfolder").canonicalize().unwrap().join(".tag_testspace")).is_some());
+
+        let path = root_dir_path.join("./file1.txt");
+        let result = workspace.add_tag_to_file(path.clone(), "".to_string(), None);
+        assert!(result.is_err());
+        let result = workspace.add_tag_to_file(path.clone(), " ".to_string(), None);
+        assert!(result.is_err());
+        let result = workspace.add_tag_to_file(path.clone(), "key".to_string(), Some("".to_string()));
+        assert!(result.is_err());
+        let result = workspace.add_tag_to_file(path.clone(), "key".to_string(), Some(" ".to_string()));
+        assert!(result.is_err());
+        let result = workspace.add_tag_to_file(path.clone(), "".to_string(), Some("value".to_string()));
+        assert!(result.is_err());
+        let result = workspace.add_tag_to_file(path.clone(), " ".to_string(), Some("value".to_string()));
+        assert!(result.is_err());
     }
 
     #[test]
@@ -498,4 +538,236 @@ mod tests {
         assert!(result.is_empty());
     }
 
+    #[test]
+    fn workspace_query_exact() {
+        use tempdir::TempDir;
+        use std::fs::File;
+
+        let root_dir: TempDir = TempDir::new("test").unwrap();
+        let root_dir_path = root_dir.path().to_path_buf();
+        
+        // Create files
+        let _file1: File = File::create(root_dir_path.join("./file1.txt")).unwrap();
+        let _file2: File = File::create(root_dir_path.join("./file2.txt")).unwrap();
+        let _file3: File = File::create(root_dir_path.join("./file3.txt")).unwrap();
+        std::fs::create_dir(root_dir_path.join("subfolder/") ).unwrap();
+        let _file_nested: File = File::create(root_dir_path.join("subfolder/nested.txt")).unwrap();
+
+        // Add tags to files
+        let mut workspace = Workspace::create_workspace(root_dir.path().to_path_buf(), &"testspace".to_string()).unwrap();
+
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file1.txt"), "Hello".to_string(), None);
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file1.txt"), "Hello".to_string(), Some("World".to_string()));
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file1.txt"), "_".to_string(), Some("Hello".to_string()));
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file2.txt"), "Hello".to_string(), None);
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file2.txt"), "Hello".to_string(), Some("World".to_string()));
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file2.txt"), "_".to_string(), Some("Hello".to_string()));
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file3.txt"), "quACk".to_string(), None);
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file4.txt"), "quACk".to_string(), Some("wACK".to_string()));
+        let _ = workspace.add_tag_to_file(root_dir_path.join("subfolder/nested.txt"), "quACk".to_string(), None);
+
+
+        // QUERY - test bool flags
+        let result = workspace.query_exact("Hello", true, true, true);
+        println!("RESULT IS {:?}", result);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 3));
+
+
+        let result = workspace.query_exact("Hello", true, true, false);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 2));
+        assert!(result.iter().all(|(_s,v)| v.contains(&Tag::KV("Hello".to_string(), "World".to_string()))));
+        let result = workspace.query_exact("World", true, true, false);
+        assert!(result.is_empty());
+
+        let result = workspace.query_exact("Hello", true, false, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 2));
+        assert!(result.iter().all(|(_s,v)| v.contains(&Tag::KV("_".to_string(), "Hello".to_string()))));
+        let result = workspace.query_exact("World", true, false, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 1));
+
+        let result = workspace.query_exact("Hello", true, false, false);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 1));
+        assert!(result.iter().all(|(_s,v)| v.iter().all(
+            |t| matches!(t, Tag::Simple(_)))
+        ));
+        assert!(result.iter().all(|(_s,v)| v[0] == Tag::Simple("Hello".to_string())));
+
+
+        let result = workspace.query_exact("Hello", false, true, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 2));
+        assert!(result.iter().all(|(_s,v)| v.iter().all(
+            |t| matches!(t, Tag::KV(_,_)))
+        ));
+
+        let result = workspace.query_exact("Hello", false, true, false);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 1));
+        assert!(result.iter().all(|(_s,v)| v.contains(&Tag::KV("Hello".to_string(), "World".to_string()))));
+        let result = workspace.query_exact("World", false, true, false);
+        assert!(result.is_empty());
+
+        let result = workspace.query_exact("Hello", false, false, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 1));
+        assert!(result.iter().all(|(_s,v)| v.contains(&Tag::KV("_".to_string(), "Hello".to_string()))));
+        let result = workspace.query_exact("World", false, false, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 1));
+
+        let result = workspace.query_exact("Hello", false, false, false);
+        assert!(result.is_empty());
+
+        // QUERY - test for exactness
+        let result = workspace.query_exact("hello", true, true, true);
+        assert!(result.is_empty());
+        let result = workspace.query_exact("Hello ", true, true, true);
+        assert!(result.is_empty());
+        let result = workspace.query_exact(" Hello", true, true, true);
+        assert!(result.is_empty());
+        let result = workspace.query_exact("He llo", true, true, true);
+        assert!(result.is_empty());
+        let result = workspace.query_exact("Hell", true, true, true);
+        assert!(result.is_empty());
+
+        // QUERY - test for subdirectories and for properly-formatted file path strings.
+        let result = workspace.query_exact("quACk", true, true, true);
+        println!("RESULT: {:?}", result);
+        assert_eq!(result.len(), 3);
+        #[cfg(target_os = "windows")]
+        {
+            assert!(result.keys().any(|k| k == ".\\file3.txt"));
+            assert!(result.keys().any(|k| k == ".\\subfolder\\nested.txt"));
+            assert!(result.keys().any(|k| k == ".\\file4.txt"));
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            assert!(result.keys().any(|k| k == "./file3.txt"));
+            assert!(result.keys().any(|k| k == "./subfolder/nested.txt"));
+            assert!(result.keys().any(|k| k == "./file4.txt"));
+        }
+    }
+
+    #[test]
+    fn workspace_query_fuzzy() {
+        use tempdir::TempDir;
+        use std::fs::File;
+
+        let root_dir: TempDir = TempDir::new("test").unwrap();
+        let root_dir_path = root_dir.path().to_path_buf();
+        
+        // Create files
+        let _file1: File = File::create(root_dir_path.join("./file1.txt")).unwrap();
+        let _file2: File = File::create(root_dir_path.join("./file2.txt")).unwrap();
+        let _file3: File = File::create(root_dir_path.join("./file3.txt")).unwrap();
+        std::fs::create_dir(root_dir_path.join("subfolder/") ).unwrap();
+        let _file_nested: File = File::create(root_dir_path.join("subfolder/nested.txt")).unwrap();
+
+        // Add tags to files
+        let mut workspace = Workspace::create_workspace(root_dir.path().to_path_buf(), &"testspace".to_string()).unwrap();
+
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file1.txt"), "Hello".to_string(), None);
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file1.txt"), "Hello".to_string(), Some("World".to_string()));
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file1.txt"), "_".to_string(), Some("Hello".to_string()));
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file2.txt"), "Hello".to_string(), None);
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file2.txt"), "Hello".to_string(), Some("World".to_string()));
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file2.txt"), "_".to_string(), Some("Hello".to_string()));
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file3.txt"), "quACk".to_string(), None);
+        let _ = workspace.add_tag_to_file(root_dir_path.join("./file4.txt"), "quACk".to_string(), Some("wACK".to_string()));
+        let _ = workspace.add_tag_to_file(root_dir_path.join("subfolder/nested.txt"), "quACk".to_string(), None);
+
+
+        // QUERY - test bool flags and for exactness
+        let result = workspace.query_fuzzy("Hello", true, true, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 3));
+
+
+        let result = workspace.query_fuzzy("Hello", true, true, false);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 2));
+        assert!(result.iter().all(|(_s,v)| v.contains(&Tag::KV("Hello".to_string(), "World".to_string()))));
+        let result = workspace.query_fuzzy("World", true, true, false);
+        assert!(result.is_empty());
+
+        let result = workspace.query_fuzzy("Hello", true, false, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 2));
+        assert!(result.iter().all(|(_s,v)| v.contains(&Tag::KV("_".to_string(), "Hello".to_string()))));
+        let result = workspace.query_fuzzy("World", true, false, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 1));
+
+        let result = workspace.query_fuzzy("Hello", true, false, false);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 1));
+        assert!(result.iter().all(|(_s,v)| v.iter().all(
+            |t| matches!(t, Tag::Simple(_)))
+        ));
+        assert!(result.iter().all(|(_s,v)| v[0] == Tag::Simple("Hello".to_string())));
+
+
+        let result = workspace.query_fuzzy("Hello", false, true, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 2));
+        assert!(result.iter().all(|(_s,v)| v.iter().all(
+            |t| matches!(t, Tag::KV(_,_)))
+        ));
+
+        let result = workspace.query_fuzzy("Hello", false, true, false);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 1));
+        assert!(result.iter().all(|(_s,v)| v.contains(&Tag::KV("Hello".to_string(), "World".to_string()))));
+        let result = workspace.query_fuzzy("World", false, true, false);
+        assert!(result.is_empty());
+
+        let result = workspace.query_fuzzy("Hello", false, false, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 1));
+        assert!(result.iter().all(|(_s,v)| v.contains(&Tag::KV("_".to_string(), "Hello".to_string()))));
+        let result = workspace.query_fuzzy("World", false, false, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 1));
+
+        let result = workspace.query_fuzzy("Hello", false, false, false);
+        assert!(result.is_empty());
+
+        // QUERY - test for fuzziness
+        let result = workspace.query_fuzzy("hello", true, true, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 3));
+        let result = workspace.query_fuzzy("Hello ", true, true, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 3));
+        let result = workspace.query_fuzzy(" Hello", true, true, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 3));
+        let result = workspace.query_fuzzy("Hell", true, true, true);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|(_s,v)| v.len() == 3));
+        let result = workspace.query_fuzzy("He llo", true, true, true);
+        assert!(result.is_empty());
+
+        // QUERY - test for subdirectories and for properly-formatted file path strings.
+        let result = workspace.query_fuzzy("quACk", true, true, true);
+        println!("RESULT: {:?}", result);
+        assert_eq!(result.len(), 3);
+        #[cfg(target_os = "windows")]
+        {
+            assert!(result.keys().any(|k| k == ".\\file3.txt"));
+            assert!(result.keys().any(|k| k == ".\\subfolder\\nested.txt"));
+            assert!(result.keys().any(|k| k == ".\\file4.txt"));
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            assert!(result.keys().any(|k| k == "./file3.txt"));
+            assert!(result.keys().any(|k| k == "./subfolder/nested.txt"));
+            assert!(result.keys().any(|k| k == "./file4.txt"));
+        }
+    }
 }
