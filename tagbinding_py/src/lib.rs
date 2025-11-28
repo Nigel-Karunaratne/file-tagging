@@ -1,7 +1,7 @@
 #[pyo3::pymodule]
 mod rs_tags {
     use tagcore;
-    use pyo3::{PyResult, create_exception, prelude::*, pyclass, types::PyType};
+    use pyo3::{Bound, PyResult, create_exception, prelude::*, pyclass, types::PyType};
 
     create_exception!(rs_tags, PyTagError, pyo3::exceptions::PyException);
 
@@ -85,10 +85,17 @@ mod rs_tags {
     #[pymethods]
     impl TagWorkspace {
         #[classmethod]
-        pub fn open_or_create_workspace(_class: Bound<PyType>, directory: std::path::PathBuf, name: String) -> PyResult<Self> {
-            let x = tagcore::Workspace::open_or_create_workspace(directory, name);
-            match x {
+        pub fn open_workspace(_class: Bound<PyType>, directory: std::path::PathBuf, name: String) -> PyResult<Self> {
+            match tagcore::Workspace::open_workspace(directory, &name) {
                 Ok(x) => Ok(TagWorkspace {inner: x}),
+                Err(err) => Err(PyTagError::new_err(err.to_string())),
+            }
+        }
+
+        #[classmethod]
+        pub fn create_workspace(_class: Bound<PyType>, directory: std::path::PathBuf, name: String) -> PyResult<Self> {
+            match tagcore::Workspace::create_workspace(directory, &name) {
+                Ok(x) => Ok(TagWorkspace { inner: x }),
                 Err(err) => Err(PyTagError::new_err(err.to_string())),
             }
         }

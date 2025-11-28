@@ -11,36 +11,55 @@ pub struct Workspace {
     root_folder: PathBuf,
     /// The name of the workspace
     name: String,
-    /// Mapping from DIRECTORY PATHS to in-memory TagFiles. Directory paths ARE CANNONICALIZED
+    /// Mapping from directory paths including file names to in-memory TagFiles. Directory paths ARE CANNONICALIZED
     all_tagfiles: HashMap<PathBuf, TagFile>,
     tags_cache: HashSet<String>
 }
 
 // Public functions
 impl Workspace {
-    /// Attempts to open a workspace given a directory (a folder) and a workspace name. If no workspace exists in the directory, creates one instead. Validates the workspace name
-    pub fn open_or_create_workspace(directory: PathBuf, name: String) -> Result<Workspace, WorkspaceError>{
+    /// Attempts to open a workspace given a directory (a folder) and a workspace name. If no workspace exists in the directory, errors. Validates the workspace name
+    pub fn open_workspace(directory: PathBuf, name: &String) -> Result<Workspace, WorkspaceError> {
         if !Workspace::is_name_valid(&name) {
-            return Err(WorkspaceError::InvalidName(name));
+            return Err(WorkspaceError::InvalidName(name.clone()));
         }
 
-        let tag_file_name = directory.join(Workspace::get_workspace_file_name(&name));
+        let workspace_file_name: PathBuf = directory.join(Workspace::get_workspace_file_name(&name));
 
-        //If file cannot be opened, return error
-        if let Err(_e) = Workspace::open_workspace_file(&tag_file_name) {
-            return match tag_file_name.file_name() {
-                Some(name) => Err(WorkspaceError::FileUnavailable(name.to_str().unwrap_or("[unknown file name]").to_string())),
-                None => Err(WorkspaceError::FileUnavailable("[no file name]".to_string())),
-            }
-        }
+        Workspace::open_workspace_file(&workspace_file_name).map_err(|_e| WorkspaceError::FileUnavailable("".to_string()))?;
 
-        //Create a workspace
+        //Create a workspace instance
+        let Ok(cannon_dir) = directory.canonicalize() else {
+            return Err(WorkspaceError::FileUnavailable("Cannot get parent directory".to_string()))
+        };
         Ok(Workspace { 
-            root_folder: directory,
-            name: name,
+            root_folder: cannon_dir,
+            name: name.clone(),
             all_tagfiles: HashMap::new(),
             tags_cache: HashSet::new()
-        }) //move into else up above
+        })
+    }
+
+    /// Attempts to create a workspace given a directory (a folder) and a workspace name. If a same-named workspace exists in the directory, errors. Validates the workspace name
+    pub fn create_workspace(directory: PathBuf, name: &String) -> Result<Workspace, WorkspaceError>{
+        if !Workspace::is_name_valid(&name) {
+            return Err(WorkspaceError::InvalidName(name.clone()));
+        }
+
+        let workspace_file_name: PathBuf = directory.join(Workspace::get_workspace_file_name(&name));
+
+        Workspace::create_workspace_file(&workspace_file_name).map_err(|_e| WorkspaceError::FileUnavailable("".to_string()))?;
+
+        //Create a workspace instance
+        let Ok(cannon_dir) = directory.canonicalize() else {
+            return Err(WorkspaceError::FileUnavailable("Cannot get parent directory".to_string()))
+        };
+        Ok(Workspace { 
+            root_folder: cannon_dir,
+            name: name.clone(),
+            all_tagfiles: HashMap::new(),
+            tags_cache: HashSet::new()
+        })
     }
 
     /// Scans for .tag files, starting from the workspace's root directory and recursing into folders.

@@ -10,7 +10,7 @@ pub struct TagFile {
     #[serde(skip)]
     pub full_path_to_tagfile: PathBuf,
 
-    mapping: HashMap<String, Vec<Tag>>
+    pub mapping: HashMap<String, Vec<Tag>>
 }
 
 impl TagFile {
