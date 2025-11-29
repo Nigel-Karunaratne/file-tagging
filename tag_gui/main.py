@@ -2,7 +2,10 @@ import sys
 import os
 
 from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QIcon
+
 from view.main_window import MainWindow
+from controller.app_controller import AppController
 
 def main():
     # Handle command-line args
@@ -17,13 +20,14 @@ def main():
     """ *********************************** """
     # Create the application
     app = QApplication(sys.argv)
-    
-    # Create the root widget / view
+    app.setWindowIcon(QIcon.fromTheme(QIcon.ThemeIcon.FolderNew))
+
+    # Create view
     view = MainWindow()
     view.resize(800, 650)
 
     # TODO - create controller? Or have View just own the model?
-    # Use 1 model (files + tags)? Or have 2 models, where QFileSystemModel references other?
+    controller = AppController(view.fs_model, view.tag_model, view.files_tab.right_file_info_widget, view.files_tab)
     
     # Show window
     view.show()

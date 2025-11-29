@@ -1,5 +1,5 @@
 import sys
-from PySide6.QtCore import Qt, QDir, QModelIndex
+from PySide6.QtCore import Qt, QDir, QModelIndex, Signal
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtWidgets import (
     QWidget, QTabWidget, QVBoxLayout, QHBoxLayout, QLabel, QSplitter, QFileSystemModel, QTreeView, QMenuBar, QHeaderView, QPushButton, QStackedWidget, QLineEdit, QScrollArea, QSizePolicy
@@ -26,8 +26,8 @@ class MainWindow(QWidget):
         layout.addWidget(menu_bar)
 
         self.tabs = QTabWidget()
-        files_tab = FilesTab(self.fs_model, self.tag_model)
-        self.tabs.addTab(files_tab, "Files")
+        self.files_tab = FilesTab(self.fs_model, self.tag_model)
+        self.tabs.addTab(self.files_tab, "Files")
 
         # Tab 2 (tag explorer)
         tag_tab = QWidget()
@@ -72,6 +72,11 @@ class FilesTab(QWidget):
         up_btn.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.GoUp))
         up_btn.clicked.connect(self._on_directory_up_btn_clicked)
         nav_bar.addWidget(up_btn)
+        self.workspace_name_label = QLabel("...")
+        self.workspace_name_label.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self.workspace_name_label.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        self.set_workspace_name_label(tag_model)
+        nav_bar.addWidget(self.workspace_name_label)
         layout.addLayout(nav_bar)
         
         self.fs_model = fs_model
@@ -120,10 +125,16 @@ class FilesTab(QWidget):
         layout.addWidget(splitter_root)
         splitter_root.setSizes([250,40])
 
+    def set_workspace_name_label(self, tag_model: TagModel):
+        name = tag_model.get_workspace_name()
+        if name == "":
+            self.workspace_name_label.setText("No Workspace Opened")
+        else:
+            self.workspace_name_label.setText(f"Workspace: {name}")
+
     def on_scroll_resize(self, event):
         self.right_stack.setMinimumWidth(event.size().width())
         event.accept()
-
 
     def _on_file_folder_selection_changed(self, selected, _deselected):
         indexes = selected.indexes()
@@ -160,10 +171,15 @@ class FilesTab(QWidget):
         
 
 class FileInfoWidget(QWidget):
+    sg_remove_tab_button_clicked = Signal(str, str, object)
+    sg_add_simple_button_clicked = Signal(str, str)
+    sg_add_kv_button_clicked = Signal(str, str, str)
+
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout()
         self.tags = []
+        self.current_file_path = ""
 
         self.label_icon = QLabel()
         self.label_name = QLabel()
@@ -175,6 +191,7 @@ class FileInfoWidget(QWidget):
         self.add_simple_tag_text_edit = QLineEdit()
         self.add_simple_tag_text_edit.setPlaceholderText("tag...")
         self.add_simple_tag_button = QPushButton("Add Simple Tag")
+        self.add_simple_tag_button.clicked.connect(lambda _: self.sg_add_simple_button_clicked.emit(self.current_file_path, self.add_simple_tag_text_edit.text()))
         self.add_simple_tag_button.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.ListAdd))
         # hbox_simple.addWidget(self.add_simple_tag_text_edit)
         # hbox_simple.addWidget(self.add_simple_tag_button)
@@ -186,6 +203,7 @@ class FileInfoWidget(QWidget):
         self.add_kv_tag_v_text_edit.setPlaceholderText("Value...")
         self.add_kv_tag_button = QPushButton("Add Key-Value Tag")
         self.add_kv_tag_button.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.ListAdd))
+        self.add_kv_tag_button.clicked.connect(lambda _: self.sg_add_kv_button_clicked.emit(self.current_file_path, self.add_kv_tag_k_text_edit.text(), self.add_kv_tag_v_text_edit.text()))
         hbox_kv.addWidget(self.add_kv_tag_k_text_edit)
         hbox_kv.addWidget(self.add_kv_tag_v_text_edit)
 
@@ -220,18 +238,19 @@ class FileInfoWidget(QWidget):
             return
         self.label_icon.setPixmap(fs_model.fileIcon(index).pixmap(32,32))
         self.label_name.setText(f"Name: {fs_model.fileName(index)}")
+        self.current_file_path = fs_model.filePath(index)
         self.label_path.setText(f"Path: {fs_model.filePath(index)}")
         self.label_size.setText(f"Size: {fs_model.size(index)}")
         lm = fs_model.lastModified(index)
         self.label_last_modified.setText(f"Last Modified: {fs_model.lastModified(index).toString()}")
 
         # self.tags = tag_model.get_tags_for_filename(fs_model.filePath(index));
-        self.tags = tag_model.get_tags_for_filename_as_list_of_str(fs_model.filePath(index))
+        self.tags = tag_model.get_tags_for_filename_as_list(fs_model.filePath(index))
         self.rebuild_tag_list()
 
         self.show()
         return
-    
+
     def rebuild_tag_list(self):
         # Remove Rows
         while self.vbox_tags.count():
@@ -246,10 +265,18 @@ class FileInfoWidget(QWidget):
             for tag in self.tags:
                 row = QWidget()
                 layout = QHBoxLayout(row)
-                label = QLabel(tag)
+                label = QLabel()
                 delete_btn = QPushButton()
                 delete_btn.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.ListRemove))
-                delete_btn.clicked.connect(lambda _, value=tag: self.remove_tag_from_active_file(tag))
+                if isinstance(tag, list) and len(tag) >= 2:
+                    label.setText(f"{tag[0]}: {tag[1]}")
+                    delete_btn.setProperty("tag_t1", tag[0])
+                    delete_btn.setProperty("tag_t2", tag[1])
+                else:
+                    label.setText(tag) # ignore warning, we know it's string # type: ignore
+                    delete_btn.setProperty("tag_t1", tag)
+                    delete_btn.setProperty("tag_t2", None)
+                delete_btn.clicked.connect(lambda _, button=delete_btn: self.sg_remove_tab_button_clicked.emit(self.current_file_path, button.property("tag_t1"), button.property("tag_t2")))
                 layout.addWidget(label)
                 layout.addStretch()
                 layout.addWidget(delete_btn)
