@@ -7,6 +7,7 @@ from PySide6.QtCore import Signal, QObject
 
 class TagModel(QObject):
     # sg_tag_info_changed = Signal()
+    sg_workspace_name_change = Signal(str)
 
     def __init__(self, cwd):
         super().__init__()
@@ -16,6 +17,7 @@ class TagModel(QObject):
         self.current_workspace = tags.TagWorkspace.open_workspace(self.cwd, "test")
         if self.current_workspace:
             self.current_workspace.scan_for_tagfiles()
+            self.sg_workspace_name_change.emit(self.current_workspace.get_name())
             print(f"WORKSPACE IS {self.current_workspace}")
         print(cwd)
 

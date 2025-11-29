@@ -7,10 +7,12 @@ from PySide6.QtGui import QIcon
 from view.main_window import MainWindow
 from controller.app_controller import AppController
 from model.file_query_model import FileQueryModel
+from model.tag_model import TagModel
+from model.file_explorer_model import FileExplorerModel
 
 def main():
     # Handle command-line args
-    app_cwd = "."
+    app_cwd = os.getcwd()
 
     for arg in sys.argv:
         if os.path.isdir(arg):
@@ -23,13 +25,15 @@ def main():
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon.fromTheme(QIcon.ThemeIcon.FolderNew))
 
-    # Create view
+    # Create view, models, and controller
     view = MainWindow()
     view.resize(900, 650)
 
-    # TODO - create controller? Or have View just own the model?
+    tag_model = TagModel(app_cwd)
     query_model = FileQueryModel()
-    controller = AppController(view.fs_model, view.tag_model, view.files_tab.right_file_info_widget, view.files_tab, view.query_tab, query_model)
+    fs_model = FileExplorerModel(app_cwd)
+
+    controller = AppController(fs_model, tag_model, query_model, view)
     
     # Show window
     view.show()

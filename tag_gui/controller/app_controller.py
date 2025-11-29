@@ -1,20 +1,38 @@
 from model.file_explorer_model import FileExplorerModel
 from model.tag_model import TagModel
 from model.file_query_model import FileQueryModel
-from view.main_window import FileInfoWidget, FilesTab, QueryTab
+from view.main_window import MainWindow, FileInfoWidget, FilesTab, QueryTab
 
 class AppController():
-    def __init__(self, fs_model: FileExplorerModel, tag_model: TagModel, file_info_widget: FileInfoWidget, files_tab: FilesTab, query_tab: QueryTab, file_query_model: FileQueryModel):
+    def __init__(self, fs_model: FileExplorerModel, tag_model: TagModel, file_query_model: FileQueryModel, view: MainWindow):
         self.fs_model = fs_model
         self.tag_model = tag_model
         self.file_query_model = file_query_model
-        self.file_info_widget = file_info_widget
-        self.files_tab = files_tab
-        self.query_tab = query_tab
+        self.explore_file_info_widget = view.files_tab.right_file_info_widget
+        self.files_tab = view.files_tab
+        self.query_tab = view.query_tab
 
-        self.file_info_widget.sg_remove_tab_button_clicked.connect(self._on_tag_btn_delete_click)
-        self.file_info_widget.sg_add_simple_button_clicked.connect(self._on_tag_simple_btn_add_click)
-        self.file_info_widget.sg_add_kv_button_clicked.connect(self._on_tag_kv_btn_add_click)
+        self.fs_model.set_directory(self.fs_model.current_directory, self.tag_model.get_tag_mapping_in_dir_as_strings(self.fs_model.current_directory))
+
+        # ** Explore Tab ** #
+        self.files_tab.left_file_hierarchy.setModel(self.fs_model)
+        self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(self.fs_model.current_directory))
+        for col in range(2, self.fs_model.columnCount()):
+            self.files_tab.left_file_hierarchy.setColumnHidden(col, True)
+        self.files_tab.left_file_hierarchy.selectionModel().selectionChanged.connect(self.files_tab.on_file_folder_selection_changed)
+
+        # Force a name change manually
+        self.files_tab.set_workspace_name_label(self.tag_model.get_workspace_name())
+        self.tag_model.sg_workspace_name_change.connect(self.files_tab.set_workspace_name_label)
+        self.fs_model.sg_going_up_directory.connect(self._on_fsmodel_directorychange)
+
+        self.files_tab.sg_file_folder_doubleclick.connect(self._on_explorerview_doubleclick)
+        self.files_tab.sg_directory_up_btn_click.connect(self._on_exploreview_upbtn_click)
+        self.files_tab.sg_selected_file_change.connect(self._on_exploreview_selected_file_change)
+
+        self.explore_file_info_widget.sg_remove_tab_button_clicked.connect(self._on_tag_btn_delete_click)
+        self.explore_file_info_widget.sg_add_simple_button_clicked.connect(self._on_tag_simple_btn_add_click)
+        self.explore_file_info_widget.sg_add_kv_button_clicked.connect(self._on_tag_kv_btn_add_click)
 
         # ** Query Tab ** #
         self.query_tab.middle_root.setModel(self.file_query_model)
@@ -27,44 +45,44 @@ class AppController():
         print(f"RV IS {rv}")
         if rv: # If removing the tag was successful, we need to re-fresh the views manually. Signals would have helped...
             # Refresh the file explorer model, by resetting its root dir and setting it back again
-            self.fs_model.set_directory(self.fs_model.current_directory, self.files_tab.tag_model)
+            self.fs_model.set_directory(self.fs_model.current_directory, self.tag_model.get_tag_mapping_in_dir_as_strings(self.fs_model.current_directory))
             root_path = self.fs_model.rootPath()
             self.fs_model.setRootPath("")
             self.fs_model.setRootPath(root_path)
 
             # Refresh the file info widget
-            self.file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(self.file_info_widget.current_file_path)
-            self.file_info_widget.rebuild_tag_list()
-            self.file_info_widget.update()
+            self.explore_file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(self.explore_file_info_widget.current_file_path)
+            self.explore_file_info_widget.rebuild_tag_list()
+            self.explore_file_info_widget.update()
             self.file_query_model.rebuild_from_mapping()
     
     def _on_tag_simple_btn_add_click(self, file_name, tag_t1):
         rv = self.tag_model.add_tag_to_file(file_name, tag_t1, None)
         if rv:
-            self.fs_model.set_directory(self.fs_model.current_directory, self.files_tab.tag_model)
+            self.fs_model.set_directory(self.fs_model.current_directory, self.tag_model.get_tag_mapping_in_dir_as_strings(self.fs_model.current_directory))
             root_path = self.fs_model.rootPath()
             self.fs_model.setRootPath("")
             self.fs_model.setRootPath(root_path)
 
             # Refresh the file info widget
-            self.file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(self.file_info_widget.current_file_path)
-            self.file_info_widget.rebuild_tag_list()
-            self.file_info_widget.update()
+            self.explore_file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(self.explore_file_info_widget.current_file_path)
+            self.explore_file_info_widget.rebuild_tag_list()
+            self.explore_file_info_widget.update()
             self.file_query_model.rebuild_from_mapping()
         return
     
     def _on_tag_kv_btn_add_click(self, file_name, tag_t1, tag_t2):
         rv = self.tag_model.add_tag_to_file(file_name, tag_t1, tag_t2)
         if rv:
-            self.fs_model.set_directory(self.fs_model.current_directory, self.files_tab.tag_model)
+            self.fs_model.set_directory(self.fs_model.current_directory, self.tag_model.get_tag_mapping_in_dir_as_strings(self.fs_model.current_directory))
             root_path = self.fs_model.rootPath()
             self.fs_model.setRootPath("")
             self.fs_model.setRootPath(root_path)
 
             # Refresh the file info widget
-            self.file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(self.file_info_widget.current_file_path)
-            self.file_info_widget.rebuild_tag_list()
-            self.file_info_widget.update()
+            self.explore_file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(self.explore_file_info_widget.current_file_path)
+            self.explore_file_info_widget.rebuild_tag_list()
+            self.explore_file_info_widget.update()
             self.file_query_model.rebuild_from_mapping()
         return
 
@@ -73,5 +91,30 @@ class AppController():
         self.file_query_model.rebuild_from_mapping()
         return
     
+    def _on_explorerview_doubleclick(self, index):
+        print("something was double clicked")
+        is_file, dir_path = self.fs_model.open_file_info_from_index(index)
+        if not is_file:
+            self.fs_model.set_directory(dir_path, self.tag_model.get_tag_mapping_in_dir_as_strings(dir_path))
+            self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(dir_path))
+    
+    def _on_exploreview_upbtn_click(self):
+        self.fs_model.attempt_to_go_up()
+        return
+    
+    def _on_fsmodel_directorychange(self, parent_dir: str):
+        mapping =self.tag_model.get_tag_mapping_in_dir_as_strings(parent_dir)
+        print(f"mapping is {mapping}")
+        self.fs_model.set_directory(parent_dir, mapping)
+        self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(parent_dir))
+        return
+
+    def _on_exploreview_selected_file_change(self, index):
+        self.explore_file_info_widget.set_selected(index, self.fs_model.fileIcon(index), self.fs_model.fileName(index), self.fs_model.filePath(index), self.fs_model.size(index), self.fs_model.lastModified(index).toString())
+        self.explore_file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(self.fs_model.filePath(index))
+        self.explore_file_info_widget.rebuild_tag_list()
+        self.explore_file_info_widget.show()
+        return
+
     def _on_queryview_doubleclick(self, index):
         self.file_query_model.open_file_info_from_index(index)
