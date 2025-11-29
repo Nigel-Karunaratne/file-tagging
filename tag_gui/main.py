@@ -24,7 +24,7 @@ def main():
 
     # Create view
     view = MainWindow()
-    view.resize(800, 650)
+    view.resize(900, 650)
 
     # TODO - create controller? Or have View just own the model?
     controller = AppController(view.fs_model, view.tag_model, view.files_tab.right_file_info_widget, view.files_tab)

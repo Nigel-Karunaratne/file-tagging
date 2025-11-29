@@ -2,7 +2,7 @@ import sys
 from PySide6.QtCore import Qt, QDir, QModelIndex, Signal
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtWidgets import (
-    QWidget, QTabWidget, QVBoxLayout, QHBoxLayout, QLabel, QSplitter, QFileSystemModel, QTreeView, QMenuBar, QHeaderView, QPushButton, QStackedWidget, QLineEdit, QScrollArea, QSizePolicy
+    QWidget, QTabWidget, QVBoxLayout, QHBoxLayout, QLabel, QSplitter, QFileSystemModel, QTreeView, QMenuBar, QHeaderView, QPushButton, QStackedWidget, QLineEdit, QScrollArea, QSizePolicy, QCheckBox, QRadioButton, QGroupBox
 )
 from model.file_explorer_model import FileExplorerModel
 from model.tag_model import TagModel
@@ -24,16 +24,14 @@ class MainWindow(QWidget):
         
         menu_bar = self._make_menu_bar()
         layout.addWidget(menu_bar)
-
         self.tabs = QTabWidget()
+
         self.files_tab = FilesTab(self.fs_model, self.tag_model)
         self.tabs.addTab(self.files_tab, "Files")
 
         # Tab 2 (tag explorer)
-        tag_tab = QWidget()
-        tag_tab_layout = QVBoxLayout(tag_tab)
-        tag_tab_layout.addWidget(QLabel("Tags")) 
-        self.tabs.addTab(tag_tab, "Tag")
+        query_tab = QueryTab(self.fs_model, self.tag_model) 
+        self.tabs.addTab(query_tab, "Search")
 
         # Add to main layout
 
@@ -281,7 +279,83 @@ class FileInfoWidget(QWidget):
                 layout.addStretch()
                 layout.addWidget(delete_btn)
                 self.vbox_tags.addWidget(row)
+
+class QueryTab(QWidget):
+    def __init__(self, fs_model: FileExplorerModel, tag_model: TagModel):
+        super().__init__()
+        self.tag_model = tag_model
+        layout = QVBoxLayout(self)
+
+        # ** LEFT - SEARCH BOX ** #
+        self.left_root = QuerySearchArea()        
+        # ** MIDDLE - FILES ** #
+        self.middle_root = QLabel("Mid")
+        # ** RIGHT - FILE INFO ** #
+        # self.right_root = FileInfoWidget()
+
+        self.right_root_stack = QStackedWidget()
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.right_file_info_widget = FileInfoWidget()
+        self.right_placeholder_widget = QLabel("Select a file...")
+        self.right_placeholder_widget.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        self.right_root_stack.addWidget(self.right_placeholder_widget) # Index 0
+        self.right_root_stack.addWidget(self.right_file_info_widget) # Index 1
+        self.right_root_stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding)
+        scroll_area.resizeEvent = self._on_scroll_resize
+        scroll_area.setWidget(self.right_root_stack)
+        self.right_root_stack.setCurrentIndex(0)
+
+        # ** SPLITTER ROOT ** #
+        splitter_root = QSplitter(Qt.Orientation.Horizontal)
+        splitter_root.addWidget(self.left_root)
+        splitter_root.addWidget(self.middle_root)
+        splitter_root.addWidget(self.right_root_stack)
+        layout.addWidget(splitter_root)
+        splitter_root.setSizes([50,250,50])
     
-    def remove_tag_from_active_file(self, tag):
-        print("REMOVING TAG FORM ACTIVE FILE!!!")
-        return
+    def _on_scroll_resize(self, event):
+        self.right_root_stack.setMinimumWidth(event.size().width())
+        event.accept()
+
+class QuerySearchArea(QWidget):
+    def __init__(self):
+        super().__init__()
+        left_root_layout = QVBoxLayout(self)
+        left_root_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        panel_title_bar = QLabel("Tag Search")
+        panel_title_bar.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        left_root_layout.addWidget(panel_title_bar)
+        tag_name_search = QLineEdit()
+        tag_name_search.setPlaceholderText("Search...")
+        left_root_layout.addWidget(tag_name_search)
+        
+        exact_fuzzy_group = QGroupBox()
+        exact_fuzzy_group_layout = QHBoxLayout()
+        exact_radio_btn = QRadioButton("Exact")
+        fuzzy_radio_btn = QRadioButton("Fuzzy")
+        exact_fuzzy_group_layout.addWidget(exact_radio_btn)
+        exact_fuzzy_group_layout.addWidget(fuzzy_radio_btn)
+        exact_fuzzy_group.setLayout(exact_fuzzy_group_layout)
+        left_root_layout.addWidget(exact_fuzzy_group)
+
+        flags_group = QGroupBox()
+        flags_layout = QHBoxLayout()
+        flags_label = QLabel("Include: ")
+        flags_layout.addWidget(flags_label)
+        flags_vbox = QVBoxLayout()
+        checkbox_simple = QCheckBox()
+        checkbox_simple.setText("Simple")
+        checkbox_key = QCheckBox()
+        checkbox_key.setText("Key")
+        checkbox_value = QCheckBox()
+        checkbox_value.setText("Value")
+        flags_vbox.addWidget(checkbox_simple)
+        flags_vbox.addWidget(checkbox_key)
+        flags_vbox.addWidget(checkbox_value)
+        flags_layout.addLayout(flags_vbox)
+        flags_group.setLayout(flags_layout)
+        left_root_layout.addWidget(flags_group)
