@@ -84,3 +84,19 @@ class TagModel(QObject):
     def set_open_current_workspace(self, new_cwd, workspace_name) -> bool:
         wksp = tags.TagWorkspace.open_workspace(new_cwd, workspace_name)
         return wksp != None
+    
+    def do_query(self, exact: bool, text: str, simple=True, key=True, value=True) -> dict:
+        if self.current_workspace == None:
+            return dict()
+        rv = dict()
+        qv = self.current_workspace.query_exact(text, simple, key, value) if exact else self.current_workspace.query_fuzzy(text, simple, key, value)
+
+        for key, value in qv.items():
+            tag_strs = []
+            for tag in value:
+                if tag.is_simple():
+                    tag_strs.append(tag.simple_value)
+                else:
+                    tag_strs.append(f"{tag.kv_key}: {tag.kv_value}")
+            rv[key] = ",".join(tag_strs)
+        return rv

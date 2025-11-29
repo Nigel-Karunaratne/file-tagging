@@ -6,6 +6,7 @@ from PySide6.QtGui import QIcon
 
 from view.main_window import MainWindow
 from controller.app_controller import AppController
+from model.file_query_model import FileQueryModel
 
 def main():
     # Handle command-line args
@@ -27,7 +28,8 @@ def main():
     view.resize(900, 650)
 
     # TODO - create controller? Or have View just own the model?
-    controller = AppController(view.fs_model, view.tag_model, view.files_tab.right_file_info_widget, view.files_tab)
+    query_model = FileQueryModel()
+    controller = AppController(view.fs_model, view.tag_model, view.files_tab.right_file_info_widget, view.files_tab, view.query_tab, query_model)
     
     # Show window
     view.show()

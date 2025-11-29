@@ -1,4 +1,3 @@
-from typing import Any
 from PySide6.QtCore import Qt, QAbstractItemModel, QModelIndex, QPersistentModelIndex
 from PySide6.QtWidgets import QApplication, QTreeView, QVBoxLayout, QWidget, QFileSystemModel
 

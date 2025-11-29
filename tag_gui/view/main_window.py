@@ -30,8 +30,8 @@ class MainWindow(QWidget):
         self.tabs.addTab(self.files_tab, "Files")
 
         # Tab 2 (tag explorer)
-        query_tab = QueryTab(self.fs_model, self.tag_model) 
-        self.tabs.addTab(query_tab, "Search")
+        self.query_tab = QueryTab(self.fs_model, self.tag_model) 
+        self.tabs.addTab(self.query_tab, "Search")
 
         # Add to main layout
 
@@ -281,6 +281,8 @@ class FileInfoWidget(QWidget):
                 self.vbox_tags.addWidget(row)
 
 class QueryTab(QWidget):
+    sg_file_folder_double_click = Signal(QModelIndex)
+
     def __init__(self, fs_model: FileExplorerModel, tag_model: TagModel):
         super().__init__()
         self.tag_model = tag_model
@@ -289,10 +291,15 @@ class QueryTab(QWidget):
         # ** LEFT - SEARCH BOX ** #
         self.left_root = QuerySearchArea()        
         # ** MIDDLE - FILES ** #
-        self.middle_root = QLabel("Mid")
+        self.middle_root = QTreeView()
+        self.middle_root.setItemsExpandable(False)
+        self.middle_root.setRootIsDecorated(False)
+        header = self.middle_root.header()
+        header.setSectionResizeMode(0,QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(1,QHeaderView.ResizeMode.ResizeToContents)
+        header.setMinimumSectionSize(50)
+        self.middle_root.doubleClicked.connect(self._on_file_folder_double_click)
         # ** RIGHT - FILE INFO ** #
-        # self.right_root = FileInfoWidget()
-
         self.right_root_stack = QStackedWidget()
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -315,12 +322,18 @@ class QueryTab(QWidget):
         splitter_root.addWidget(self.right_root_stack)
         layout.addWidget(splitter_root)
         splitter_root.setSizes([50,250,50])
+
+    def _on_file_folder_double_click(self, index: QModelIndex):
+        self.sg_file_folder_double_click.emit(index)
+        return
     
     def _on_scroll_resize(self, event):
         self.right_root_stack.setMinimumWidth(event.size().width())
         event.accept()
 
 class QuerySearchArea(QWidget):
+    sg_search_query_entered = Signal(bool, str, bool, bool, bool)
+
     def __init__(self):
         super().__init__()
         left_root_layout = QVBoxLayout(self)
@@ -329,16 +342,17 @@ class QuerySearchArea(QWidget):
         panel_title_bar = QLabel("Tag Search")
         panel_title_bar.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         left_root_layout.addWidget(panel_title_bar)
-        tag_name_search = QLineEdit()
-        tag_name_search.setPlaceholderText("Search...")
-        left_root_layout.addWidget(tag_name_search)
+        self.tag_name_search = QLineEdit()
+        self.tag_name_search.setPlaceholderText("Search by Tags...")
+        left_root_layout.addWidget(self.tag_name_search)
         
         exact_fuzzy_group = QGroupBox()
         exact_fuzzy_group_layout = QHBoxLayout()
-        exact_radio_btn = QRadioButton("Exact")
-        fuzzy_radio_btn = QRadioButton("Fuzzy")
-        exact_fuzzy_group_layout.addWidget(exact_radio_btn)
-        exact_fuzzy_group_layout.addWidget(fuzzy_radio_btn)
+        self.exact_radio_btn = QRadioButton("Exact")
+        self.exact_radio_btn.setChecked(True)
+        self.fuzzy_radio_btn = QRadioButton("Fuzzy")
+        exact_fuzzy_group_layout.addWidget(self.exact_radio_btn)
+        exact_fuzzy_group_layout.addWidget(self.fuzzy_radio_btn)
         exact_fuzzy_group.setLayout(exact_fuzzy_group_layout)
         left_root_layout.addWidget(exact_fuzzy_group)
 
@@ -347,15 +361,29 @@ class QuerySearchArea(QWidget):
         flags_label = QLabel("Include: ")
         flags_layout.addWidget(flags_label)
         flags_vbox = QVBoxLayout()
-        checkbox_simple = QCheckBox()
-        checkbox_simple.setText("Simple")
-        checkbox_key = QCheckBox()
-        checkbox_key.setText("Key")
-        checkbox_value = QCheckBox()
-        checkbox_value.setText("Value")
-        flags_vbox.addWidget(checkbox_simple)
-        flags_vbox.addWidget(checkbox_key)
-        flags_vbox.addWidget(checkbox_value)
+        self.checkbox_simple = QCheckBox()
+        self.checkbox_simple.setText("Simple")
+        self.checkbox_simple.setChecked(True)
+        self.checkbox_key = QCheckBox()
+        self.checkbox_key.setText("Key")
+        self.checkbox_key.setChecked(True)
+        self.checkbox_value = QCheckBox()
+        self.checkbox_value.setText("Value")
+        self.checkbox_value.setChecked(True)
+        flags_vbox.addWidget(self.checkbox_simple)
+        flags_vbox.addWidget(self.checkbox_key)
+        flags_vbox.addWidget(self.checkbox_value)
         flags_layout.addLayout(flags_vbox)
         flags_group.setLayout(flags_layout)
         left_root_layout.addWidget(flags_group)
+
+        self.tag_name_search.editingFinished.connect(self._emit_search_query_entered)
+    
+    def _emit_search_query_entered(self):
+        exact = self.exact_radio_btn.isChecked()
+        text = self.tag_name_search.text()
+        simple = self.checkbox_simple.isChecked()
+        key = self.checkbox_key.isChecked()
+        value = self.checkbox_value.isChecked()
+        self.sg_search_query_entered.emit(exact, text, simple, key, value)
+        return
