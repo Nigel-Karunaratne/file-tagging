@@ -48,6 +48,14 @@ class FileQueryModel(QStandardItemModel):
             self.appendRow([name, tags_item])
         self.endResetModel()
 
+    def get_file_info_from_index(self, index):
+        index = index.siblingAtColumn(0)
+        path = index.data(Qt.ItemDataRole.UserRole)
+        return QFileInfo(path) if path else None
+    
+    def get_icon_from_info(self, info) -> QIcon:
+        return self._icon_provider.icon(info)
+
     def open_file_info_from_index(self, index):
         index = index.siblingAtColumn(0)
         path = index.data(Qt.ItemDataRole.UserRole)

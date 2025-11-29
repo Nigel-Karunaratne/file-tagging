@@ -241,6 +241,7 @@ class FileInfoWidget(QWidget):
 
 class QueryTab(QWidget):
     sg_file_folder_double_click = Signal(QModelIndex)
+    sg_selected_file_change = Signal(QModelIndex)
 
     def __init__(self):
         super().__init__()
@@ -288,6 +289,15 @@ class QueryTab(QWidget):
     def _on_scroll_resize(self, event):
         self.right_root_stack.setMinimumWidth(event.size().width())
         event.accept()
+
+    def on_file_folder_selection_changed(self, selected, _deselected):
+        indexes = selected.indexes()
+        if not indexes or not indexes[0].isValid():
+            self.right_root_stack.setCurrentIndex(0)
+        else:
+            self.right_root_stack.setCurrentIndex(1)
+            self.sg_selected_file_change.emit(indexes[0].siblingAtColumn(0))
+        return
 
 class QuerySearchArea(QWidget):
     sg_search_query_entered = Signal(bool, str, bool, bool, bool)

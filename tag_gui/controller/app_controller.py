@@ -9,6 +9,7 @@ class AppController():
         self.tag_model = tag_model
         self.file_query_model = file_query_model
         self.explore_file_info_widget = view.files_tab.right_file_info_widget
+        self.query_file_info_widget = view.query_tab.right_file_info_widget
         self.files_tab = view.files_tab
         self.query_tab = view.query_tab
 
@@ -38,6 +39,9 @@ class AppController():
         self.query_tab.middle_root.setModel(self.file_query_model)
         self.query_tab.left_root.sg_search_query_entered.connect(self._on_query_entered)
         self.query_tab.sg_file_folder_double_click.connect(self._on_queryview_doubleclick)
+
+        self.query_tab.middle_root.selectionModel().selectionChanged.connect(self.query_tab.on_file_folder_selection_changed)
+        self.query_tab.sg_selected_file_change.connect(self._on_queryview_selected_file_change)
 
     def _on_tag_btn_delete_click(self, file_name, tag_t1, tag_t2):
         print(f"tag is {file_name} || {tag_t1} | {tag_t2}")
@@ -114,6 +118,18 @@ class AppController():
         self.explore_file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(self.fs_model.filePath(index))
         self.explore_file_info_widget.rebuild_tag_list()
         self.explore_file_info_widget.show()
+        return
+    
+    def _on_queryview_selected_file_change(self, index):
+        print("WE ARE HERE!")
+        info = self.file_query_model.get_file_info_from_index(index)
+        if info == None:
+            return
+        icon = self.file_query_model.get_icon_from_info(info)
+        self.query_file_info_widget.set_selected(index, icon, info.fileName(), info.filePath(), info.size(), info.lastModified().toString())
+        self.query_file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(info.filePath())
+        self.query_file_info_widget.rebuild_tag_list()
+        self.query_file_info_widget.show()
         return
 
     def _on_queryview_doubleclick(self, index):
