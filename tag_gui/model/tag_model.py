@@ -17,12 +17,10 @@ class TagModel(QObject):
         self.current_workspace = tags.TagWorkspace.open_workspace(self.cwd, "test")
         if self.current_workspace:
             self.current_workspace.scan_for_tagfiles()
-            self.sg_workspace_name_change.emit(self.current_workspace.get_name())
-            print(f"WORKSPACE IS {self.current_workspace}")
         print(cwd)
 
     def get_tag_mapping_in_dir_as_strings(self, path_to_directory: str) -> Dict[str, str]:
-        print(f"START get_tag_mapping_in_dir_as_strings: {path_to_directory}")
+        # print(f"START get_tag_mapping_in_dir_as_strings: {path_to_directory}")
         if self.current_workspace == None:
             return {}
         return_val = {}
@@ -40,7 +38,7 @@ class TagModel(QObject):
             print(tags_as_list)
             return_val[entry] = ", ".join(tags_as_list)
         
-        print(f"DONE get_tag_mapping_in_dir_as_strings: {path_to_directory}")
+        # print(f"DONE get_tag_mapping_in_dir_as_strings: {path_to_directory}")
         return return_val
     
     def get_tags_for_filename_as_list(self, path_to_file_name: str) -> list:
@@ -83,9 +81,28 @@ class TagModel(QObject):
             return ""
         return self.current_workspace.get_name()
     
-    def set_open_current_workspace(self, new_cwd, workspace_name) -> bool:
+    def open_and_set_workspace(self, new_cwd, workspace_name) -> bool:
         wksp = tags.TagWorkspace.open_workspace(new_cwd, workspace_name)
-        return wksp != None
+        if wksp != None:
+            print(f" NEW open workspace {workspace_name}")
+            self.current_workspace = wksp
+            self.cwd = new_cwd
+            self.current_workspace.scan_for_tagfiles()
+            self.sg_workspace_name_change.emit(workspace_name)
+            return True
+        return False
+        
+    
+    def create_and_set_workspace(self, new_cwd, workspace_name) -> bool:
+        wksp = tags.TagWorkspace.create_workspace(new_cwd, workspace_name)
+        if wksp != None:
+            print(f" NEW create workspace {workspace_name}")
+            self.current_workspace = wksp
+            self.cwd = new_cwd
+            self.current_workspace.scan_for_tagfiles()
+            self.sg_workspace_name_change.emit(workspace_name)
+            return True
+        return False
     
     def do_query(self, exact: bool, text: str, simple=True, key=True, value=True) -> dict:
         if self.current_workspace == None:

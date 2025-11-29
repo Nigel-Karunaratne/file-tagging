@@ -33,7 +33,7 @@ def main():
     query_model = FileQueryModel()
     fs_model = FileExplorerModel(app_cwd)
 
-    controller = AppController(fs_model, tag_model, query_model, view)
+    controller = AppController(app, fs_model, tag_model, query_model, view)
     
     # Show window
     view.show()

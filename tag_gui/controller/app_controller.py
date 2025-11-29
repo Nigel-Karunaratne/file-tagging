@@ -3,8 +3,10 @@ from model.tag_model import TagModel
 from model.file_query_model import FileQueryModel
 from view.main_window import MainWindow, FileInfoWidget, FilesTab, QueryTab
 
+from PySide6.QtWidgets import QApplication
+
 class AppController():
-    def __init__(self, fs_model: FileExplorerModel, tag_model: TagModel, file_query_model: FileQueryModel, view: MainWindow):
+    def __init__(self, app: QApplication, fs_model: FileExplorerModel, tag_model: TagModel, file_query_model: FileQueryModel, view: MainWindow):
         self.fs_model = fs_model
         self.tag_model = tag_model
         self.file_query_model = file_query_model
@@ -13,7 +15,13 @@ class AppController():
         self.files_tab = view.files_tab
         self.query_tab = view.query_tab
 
+        self.main_window = view
+
         self.fs_model.set_directory(self.fs_model.current_directory, self.tag_model.get_tag_mapping_in_dir_as_strings(self.fs_model.current_directory))
+
+        view.sg_quit_app_request.connect(lambda: app.quit())
+        view.sg_create_workspace_request.connect(self._on_mainwindow_create_workspace_request)
+        view.sg_open_workspace_request.connect(self._on_mainwindow_open_workspace_request)
 
         # ** Explore Tab ** #
         self.files_tab.left_file_hierarchy.setModel(self.fs_model)
@@ -134,3 +142,18 @@ class AppController():
 
     def _on_queryview_doubleclick(self, index):
         self.file_query_model.open_file_info_from_index(index)
+
+    def _on_mainwindow_create_workspace_request(self, requested_name: str):
+        try:
+            self.tag_model.create_and_set_workspace(self.tag_model.cwd, requested_name)
+        except Exception:
+            self.main_window.show_workspace_action_fail_message("Cannot create workspace", "The workspace could not be created.")
+        return
+
+    def _on_mainwindow_open_workspace_request(self, requested_name: str):
+        try:
+            self.tag_model.open_and_set_workspace(self.tag_model.cwd, requested_name)
+        except Exception:
+            self.main_window.show_workspace_action_fail_message("Cannot open workspace", "The workspace could not be opened.")
+            pass
+        return

@@ -1,10 +1,14 @@
 from PySide6.QtCore import Qt, QDir, QModelIndex, Signal
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtWidgets import (
-    QWidget, QTabWidget, QVBoxLayout, QHBoxLayout, QLabel, QSplitter, QFileSystemModel, QTreeView, QMenuBar, QHeaderView, QPushButton, QStackedWidget, QLineEdit, QScrollArea, QSizePolicy, QCheckBox, QRadioButton, QGroupBox
+    QWidget, QTabWidget, QVBoxLayout, QHBoxLayout, QLabel, QSplitter, QFileSystemModel, QTreeView, QMenuBar, QHeaderView, QPushButton, QStackedWidget, QLineEdit, QScrollArea, QSizePolicy, QCheckBox, QRadioButton, QGroupBox, QDialog
 )
 
 class MainWindow(QWidget):
+    sg_quit_app_request = Signal()
+    sg_create_workspace_request = Signal(str)
+    sg_open_workspace_request = Signal(str)
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("File Tag GUI")
@@ -29,23 +33,79 @@ class MainWindow(QWidget):
         menu_bar = QMenuBar()
         
         file_menu = menu_bar.addMenu("File")
-        newAction = QAction(QIcon.fromTheme("document-new"), "&New", self)
-        newAction.setShortcut("Ctrl+N")
-        newAction.setStatusTip("Create a new file")
-        newAction.triggered.connect(self.newFile)
+        newAction = QAction(QIcon.fromTheme(QIcon.ThemeIcon.ApplicationExit), "&Quit", self)
+        newAction.setStatusTip("Exits the application")
+        newAction.triggered.connect(lambda: self.sg_quit_app_request.emit())
         file_menu.addAction(newAction)
 
         workspace_menu = menu_bar.addMenu("Workspaces")
-        open_or_create_action = QAction(QIcon.fromTheme("document-open"), "&Create/Open Workspace", self)
-        open_or_create_action.setShortcut("Ctrl+O")
-        open_or_create_action.setStatusTip("Creates or opens a Workspace by name")
-        open_or_create_action.triggered.connect(self.newFile)
-        workspace_menu.addAction(open_or_create_action)
+        create_action = QAction(QIcon.fromTheme(QIcon.ThemeIcon.DocumentNew), "&Create Workspace", self)
+        create_action.setShortcut("Ctrl+N")
+        create_action.setStatusTip("Creates a new Workspace in the current directory")
+        open_action = QAction(QIcon.fromTheme("document-open"), "&Open Workspace", self)
+        open_action.setShortcut("Ctrl+O")
+        open_action.setStatusTip("Opens a Workspace by name")
+        create_action.triggered.connect(self.show_create_workspace_dialog)
+        open_action.triggered.connect(self.show_open_workspace_dialog)
+        workspace_menu.addAction(create_action)
+        workspace_menu.addAction(open_action)
         return menu_bar
+    
+    def show_create_workspace_dialog(self):
+        dialogue = QDialog(parent=self)
+        dialogue.setWindowTitle("Create a new Tag Workspace")
+        layout = QVBoxLayout(dialogue)
+        text = QLabel("Enter the name of the new workspace:", parent=dialogue)
+        workspace_name_edit = QLineEdit("Name...", parent=dialogue)
+        hbox = QHBoxLayout()
+        create_button = QPushButton("Create", parent=dialogue)
+        cancel_button = QPushButton("Cancel", parent=dialogue)
+        hbox.addWidget(create_button)
+        hbox.addWidget(cancel_button)
+        layout.addWidget(text)
+        layout.addWidget(workspace_name_edit)
+        layout.addLayout(hbox)
+        create_button.clicked.connect(dialogue.accept)
+        cancel_button.clicked.connect(dialogue.reject)
+        result = dialogue.exec()
 
-    def newFile(self):
-        print("CLICKED")
+        if result == QDialog.DialogCode.Accepted:
+            self.sg_create_workspace_request.emit(workspace_name_edit.text())
+        return
+    
+    def show_open_workspace_dialog(self):
+        dialogue = QDialog(parent=self)
+        dialogue.setWindowTitle("Open an existing Tag Workspace")
+        layout = QVBoxLayout(dialogue)
+        text = QLabel("Enter the name of the workspace:", parent=dialogue)
+        workspace_name_edit = QLineEdit("Name...", parent=dialogue)
+        hbox = QHBoxLayout()
+        open_button = QPushButton("Open", parent=dialogue)
+        cancel_button = QPushButton("Cancel", parent=dialogue)
+        hbox.addWidget(open_button)
+        hbox.addWidget(cancel_button)
+        layout.addWidget(text)
+        layout.addWidget(workspace_name_edit)
+        layout.addLayout(hbox)
+        open_button.clicked.connect(dialogue.accept)
+        cancel_button.clicked.connect(dialogue.reject)
+        result = dialogue.exec()
 
+        if result == QDialog.DialogCode.Accepted:
+            self.sg_open_workspace_request.emit(workspace_name_edit.text())
+        return
+
+    def show_workspace_action_fail_message(self, title, text):
+        dialogue = QDialog(parent=self)
+        dialogue.setWindowTitle(title)
+        layout = QVBoxLayout(dialogue)
+        text = QLabel(text, parent=dialogue)
+        layout.addWidget(text)
+        close_btn = QPushButton("Ok")
+        close_btn.clicked.connect(dialogue.accept)
+        layout.addWidget(close_btn)
+        dialogue.exec()
+        return
 
 class FilesTab(QWidget):
     sg_file_folder_doubleclick = Signal(QModelIndex)
