@@ -115,7 +115,7 @@ class AppController():
         return
     
     def _on_fsmodel_directorychange(self, parent_dir: str):
-        mapping =self.tag_model.get_tag_mapping_in_dir_as_strings(parent_dir)
+        mapping = self.tag_model.get_tag_mapping_in_dir_as_strings(parent_dir)
         print(f"mapping is {mapping}")
         self.fs_model.set_directory(parent_dir, mapping)
         self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(parent_dir))
@@ -145,15 +145,27 @@ class AppController():
 
     def _on_mainwindow_create_workspace_request(self, requested_name: str):
         try:
-            self.tag_model.create_and_set_workspace(self.tag_model.cwd, requested_name)
+            self.tag_model.create_and_set_workspace(self.fs_model.current_directory, requested_name)
         except Exception:
             self.main_window.show_workspace_action_fail_message("Cannot create workspace", "The workspace could not be created.")
+            return
+        self.files_tab.set_info_to_placeholder()
+
+        # Refresh tags for file explorer model
+        mapping = self.tag_model.get_tag_mapping_in_dir_as_strings(self.tag_model.cwd)
+        self.fs_model.set_directory(self.fs_model.current_directory, mapping)
+        self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(self.fs_model.current_directory))
         return
 
     def _on_mainwindow_open_workspace_request(self, requested_name: str):
         try:
-            self.tag_model.open_and_set_workspace(self.tag_model.cwd, requested_name)
+            self.tag_model.open_and_set_workspace(self.fs_model.current_directory, requested_name)
         except Exception:
             self.main_window.show_workspace_action_fail_message("Cannot open workspace", "The workspace could not be opened.")
-            pass
+            return
+        self.files_tab.set_info_to_placeholder()
+
+        mapping = self.tag_model.get_tag_mapping_in_dir_as_strings(self.tag_model.cwd)
+        self.fs_model.set_directory(self.fs_model.current_directory, mapping)
+        self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(self.fs_model.current_directory))
         return

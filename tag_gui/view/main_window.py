@@ -56,7 +56,8 @@ class MainWindow(QWidget):
         dialogue.setWindowTitle("Create a new Tag Workspace")
         layout = QVBoxLayout(dialogue)
         text = QLabel("Enter the name of the new workspace:", parent=dialogue)
-        workspace_name_edit = QLineEdit("Name...", parent=dialogue)
+        workspace_name_edit = QLineEdit(parent=dialogue)
+        workspace_name_edit.setPlaceholderText("Name...")
         hbox = QHBoxLayout()
         create_button = QPushButton("Create", parent=dialogue)
         cancel_button = QPushButton("Cancel", parent=dialogue)
@@ -78,7 +79,8 @@ class MainWindow(QWidget):
         dialogue.setWindowTitle("Open an existing Tag Workspace")
         layout = QVBoxLayout(dialogue)
         text = QLabel("Enter the name of the workspace:", parent=dialogue)
-        workspace_name_edit = QLineEdit("Name...", parent=dialogue)
+        workspace_name_edit = QLineEdit(parent=dialogue)
+        workspace_name_edit.setPlaceholderText("Name...")
         hbox = QHBoxLayout()
         open_button = QPushButton("Open", parent=dialogue)
         cancel_button = QPushButton("Cancel", parent=dialogue)
@@ -174,6 +176,9 @@ class FilesTab(QWidget):
     def on_scroll_resize(self, event):
         self.right_stack.setMinimumWidth(event.size().width())
         event.accept()
+
+    def set_info_to_placeholder(self):
+        self.right_stack.setCurrentIndex(0)
 
     def on_file_folder_selection_changed(self, selected, _deselected):
         indexes = selected.indexes()
