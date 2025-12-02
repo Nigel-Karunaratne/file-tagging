@@ -1,6 +1,6 @@
-use clap::{Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand};
 use directories::ProjectDirs;
-use std::{fs::File, path::PathBuf};
+use std::{collections::HashMap, fs::File, path::PathBuf};
 
 use tagcore::Workspace;
 
@@ -14,52 +14,111 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Opens a workspace from the current directory
+    #[command(about = "Opens a workspace from the current directory")]
     Open {
-        #[arg(short,long)]
+        #[arg(help = "The name of the workspace to open")]
         name: String
-
     },
 
-    /// Creates a workspace in the current directory, if it doesn't exist
+    #[command(about = "Creates a workspace in the current directory, if it doesn't exist")]
     Create {
-        #[arg(short,long)]
+        #[arg(help = "The name of the workspace to create")]
         name: String
     },
 
-    /// Adds listed tags to a file
+    #[command(about = "Adds listed tags to a file")]
     Add {
+        #[arg(required = true, help = "The file to add tags to")]
+        file_name: String,
 
+        #[arg(required = false, num_args = 1, help = "Tags to add (defaults to Simple tags)")]
+        simple: Vec<String>,
+
+        #[arg(short, long, required = false, num_args = 2, value_names = &["KEY", "VALUE"], help = "Specified next two entries are a Key-Value pair")]
+        kv: Vec<String>
     },
 
-    /// Removes specified tags from files
+    #[command(about = "Removes specified tags from files")]
     Remove {
+        #[arg(required = true, help = "The file to remove tags from")]
+        file_name: String,
 
+        #[arg(short, action = ArgAction::SetTrue, required = false, help = "If specified, removes all tags from the file")]
+        all_remove: bool,
+
+        #[arg(required = false, num_args = 1, help = "Tags to remove (defaults to Simple tags)")]
+        simple: Vec<String>,
+
+        #[arg(short, long, required = false, num_args = 2, value_names = &["KEY", "VALUE"], help = "Specified next two entries are a Key-Value pair")]
+        kv: Vec<String>
     },
 
-    /// Show all tags on a file
+    #[command(about = "Show all tags on a file, as a comma-separated list")]
     Show {
-
+        #[arg(required = true, help = "The file to show all tags for")]
+        file_name: String
     },
 
-    /// Search by tags
-    Search {
+    #[command(about = "Search by tags. If no flags are given, searches all flag types")]
+    Search(SearchArgs),
 
-        
+    #[command(about = "Outputs the name of the current-open workspace")]
+    Name {
+
+    }
+}
+
+#[derive(Parser)]
+struct SearchArgs {
+    #[arg(short, help="Search mode is exact (default)")]
+    exact: bool,
+
+    #[arg(short, help="Search mode is fuzzy")]
+    fuzzy: bool,
+
+    #[arg(short, help="Include Simple tags")]
+    simple_on: bool,
+
+    #[arg(short, help="Include Keys from Key-Value tags")]
+    key_on: bool,
+
+    #[arg(short, help="Include Values from Key-Value tags")]
+    values_on: bool,
+
+    #[arg(required = true)]
+    tags: Vec<String>
+}
+
+impl SearchArgs {
+    fn normalize(mut self) -> Self {
+        if !(self.simple_on || self.key_on || self.values_on) {
+            self.simple_on = true;
+            self.key_on = true;
+            self.key_on = true;
+        }
+        self
     }
 }
 
 fn main() {
-    let _workspace = load_workspace_from_storage();
+    let mut workspace = load_workspace_from_storage();
+    if let Some(ref mut w) = workspace {
+        w.scan_for_tagfiles();
+    }
+
     let cli = Cli::parse();
 
     match cli.command {
         Commands::Open { name } => set_open_workspace_file(&name),
         Commands::Create { name  } => create_set_workspace_file(&name),
-        Commands::Add {  } => todo!(),
-        Commands::Remove {  } => todo!(),
-        Commands::Show {  } => todo!(),
-        Commands::Search {  } => todo!(),
+        Commands::Add { file_name, simple, kv } => add_tags_to_file(&mut workspace, &file_name, &simple, &kv),
+        Commands::Remove { file_name, all_remove, simple, kv } => remove_tags_from_file(&mut workspace, all_remove, &file_name, &simple, &kv),
+        Commands::Show { file_name  } => show_tags_for_file(&workspace, &file_name),
+        Commands::Search(search_args) => {
+            let search_args: SearchArgs = search_args.normalize();
+            search(&workspace, &search_args);
+        },
+        Commands::Name {  } => show_workspace_name(&workspace),
     };
 }
 
@@ -91,7 +150,7 @@ fn load_workspace_from_storage() -> Option<Workspace> {
     let Ok(path) = std::fs::read_to_string(path_to_storage_file) else {
         return None;
     };
-
+    
     //Using the read path to workspace file, open the workspace file
     let dir: PathBuf = PathBuf::from(path);
     let Some(file_name) = dir.file_name() else {
@@ -103,7 +162,7 @@ fn load_workspace_from_storage() -> Option<Workspace> {
     let Some(file_name) = file_name.to_str() else {
         return None;
     };
-    return match Workspace::open_workspace(dir.to_path_buf(), &file_name.to_string()) {
+    return match Workspace::open_workspace(dir.to_path_buf(), &file_name[9..].to_string()) {
         Ok(w) => Some(w),
         Err(_) => None,
     };
@@ -172,4 +231,155 @@ fn create_set_workspace_file(name: &String) {
         },
     };
     save_workspace_path_to_storage(&workspace);
+}
+
+fn add_tags_to_file(workspace: &mut Option<Workspace>, file_name: &String, simple: &Vec<String>, kv: &Vec<String>) {
+    let Some(workspace) = workspace else {
+        // TODO - error out
+        return;
+    };
+    let path = PathBuf::from(file_name);
+    // TODO - validate
+    for simple_tag in simple {
+        match workspace.add_tag_to_file(path.clone(), simple_tag.clone(), None) {
+            Ok(_) => (),
+            Err(error) => {
+                println!("ERROR when adding tag: {}", error.to_string());
+            }
+        }
+    }
+
+    for chunk in kv.chunks(2) {
+        if chunk.len() == 2 {
+            let k = &chunk[0];
+            let v = &chunk[1];
+
+            match workspace.add_tag_to_file(path.clone(), k.clone(), Some(v.clone())) {
+                Ok(_) => (),
+                Err(error) => {
+                    println!("ERROR when adding tag: {}", error.to_string());
+                }
+            }
+        }
+    }
+}
+
+fn remove_tags_from_file(workspace: &mut Option<Workspace>, all_remove: bool, file_name: &String, simple: &Vec<String>, kv: &Vec<String>) {
+    let Some(workspace) = workspace else {
+        // TODO - error out
+        return;
+    };
+    let path = PathBuf::from(".").join(file_name).canonicalize().unwrap();
+    // TODO - validate
+
+    if all_remove {
+        let Ok(vec) = workspace.get_tags_for_file_name(path.clone()) else {
+            return; //TODO - error out
+        };
+
+        for tag in vec {
+            let result = match tag {
+                tagcore::Tag::Simple(s) => workspace.remove_tag_from_file(path.clone(), s.clone(), None),
+                tagcore::Tag::KV(k, v) => workspace.remove_tag_from_file(path.clone(), k.clone(), Some(v.clone())),
+            };
+
+            match result {
+                Ok(_) => (),
+                Err(error) => println!("ERROR when removing tag: {}", error.to_string()),
+            };
+        }
+        return;
+    }
+
+    
+    for simple_tag in simple {
+        println!("REUSLT IS {:?}", path);
+        match workspace.remove_tag_from_file(path.clone(), simple_tag.clone(), None) {
+            Ok(_) => (),
+            Err(error) => {
+                println!("ERROR when removing tag: {}", error.to_string());
+            }
+        }
+    }
+
+    for chunk in kv.chunks(2) {
+        if chunk.len() == 2 {
+            let k = &chunk[0];
+            let v = &chunk[1];
+
+            match workspace.remove_tag_from_file(path.clone(), k.clone(), Some(v.clone())) {
+                Ok(_) => (),
+                Err(error) => {
+                    println!("ERROR when adding tag: {}", error.to_string());
+                }
+            }
+        }
+    }
+}
+
+fn show_tags_for_file(workspace: &Option<Workspace>, file_name: &String) {
+    let Some(workspace) = workspace else {
+        // TODO - error out
+        return;
+    };
+
+    let path = PathBuf::from(file_name);
+    // TODO - validate
+
+    let Ok(tags) = workspace.get_tags_for_file_name(path.clone()) else {
+        // TODO - error out
+        return;
+    };
+
+    let str_vec: Vec<String> = tags.iter().map(|tag| {
+        match tag {
+            tagcore::Tag::Simple(s) => s.to_owned(),
+            tagcore::Tag::KV(k,v) => k.to_string() + ": " + v,
+        }
+    }).collect();
+
+    println!("{}", str_vec.join(", "));
+}
+
+// TODO - fix query problem...
+fn search(workspace: &Option<Workspace>, search_args: &SearchArgs) {
+    let Some(workspace) = workspace else {
+        // TODO - error out
+        return;
+    };
+
+    let mut map = HashMap::<String, Vec<tagcore::Tag>>::new();
+    if search_args.exact {
+        for arg in &search_args.tags {
+            let result = workspace.query_exact(&arg, search_args.simple_on, search_args.key_on, search_args.values_on);
+            map.extend(result);
+        }
+    }
+    else {
+        for arg in &search_args.tags {
+            let result = workspace.query_fuzzy(&arg, search_args.simple_on, search_args.key_on, search_args.values_on);
+            map.extend(result);
+        }
+    }
+
+    let mut keys: Vec<String> = map.keys().cloned().collect();
+    keys.sort();
+
+    for file_path in keys {
+        let str_vec: Vec<String> = map.get(&file_path).unwrap().iter().map(|tag| {
+            match tag {
+                tagcore::Tag::Simple(s) => s.to_owned(),
+                tagcore::Tag::KV(k,v) => k.to_string() + ": " + v,
+            }
+        }).collect();
+
+        println!("{} -- {}", file_path, str_vec.join(", "));
+    }
+}
+
+fn show_workspace_name(workspace: &Option<Workspace>) {
+    match workspace {
+        Some(w) => println!("{}", w.get_name()),
+        None => println!("No workspace opened"),
+    }
 }
