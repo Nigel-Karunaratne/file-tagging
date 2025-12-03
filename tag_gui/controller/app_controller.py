@@ -164,6 +164,8 @@ class AppController():
         mapping = self.tag_model.get_tag_mapping_in_dir_as_strings(self.tag_model.cwd)
         self.fs_model.set_directory(self.fs_model.current_directory, mapping)
         self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(self.fs_model.current_directory))
+
+        self.file_query_model.clear()
         return
 
     def _on_mainwindow_open_workspace_request(self, requested_name: str):
@@ -177,4 +179,6 @@ class AppController():
         mapping = self.tag_model.get_tag_mapping_in_dir_as_strings(self.tag_model.cwd)
         self.fs_model.set_directory(self.fs_model.current_directory, mapping)
         self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(self.fs_model.current_directory))
+
+        self.file_query_model.clear()
         return
