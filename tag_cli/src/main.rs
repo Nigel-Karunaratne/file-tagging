@@ -55,8 +55,8 @@ enum Commands {
 
     #[command(about = "Show all tags on a file, as a comma-separated list")]
     Show {
-        #[arg(required = true, help = "The file to show all tags for")]
-        file_name: String
+        #[arg(required = true, help = "The file(s) to show all tags for")]
+        file_names: Vec<String>
     },
 
     #[command(about = "Search by tags. If no flags are given, searches all flag types")]
@@ -113,7 +113,7 @@ fn main() {
         Commands::Create { name  } => create_set_workspace_file(&name),
         Commands::Add { file_name, simple, kv } => add_tags_to_file(&mut workspace, &file_name, &simple, &kv),
         Commands::Remove { file_name, all_remove, simple, kv } => remove_tags_from_file(&mut workspace, all_remove, &file_name, &simple, &kv),
-        Commands::Show { file_name  } => show_tags_for_file(&workspace, &file_name),
+        Commands::Show { file_names  } => show_tags_for_file(&workspace, &file_names),
         Commands::Search(search_args) => {
             let search_args: SearchArgs = search_args.normalize();
             search(&workspace, &search_args);
@@ -238,8 +238,11 @@ fn add_tags_to_file(workspace: &mut Option<Workspace>, file_name: &String, simpl
         // TODO - error out
         return;
     };
-    let path = PathBuf::from(file_name);
-    // TODO - validate
+    let path = PathBuf::from(".").join(file_name);
+    if !path.exists() {
+        // TODO - validate?
+    }
+
     for simple_tag in simple {
         match workspace.add_tag_to_file(path.clone(), simple_tag.clone(), None) {
             Ok(_) => (),
@@ -270,7 +273,9 @@ fn remove_tags_from_file(workspace: &mut Option<Workspace>, all_remove: bool, fi
         return;
     };
     let path = PathBuf::from(".").join(file_name).canonicalize().unwrap();
-    // TODO - validate
+    if !path.exists() {
+        // TODO - validate?
+    }
 
     if all_remove {
         let Ok(vec) = workspace.get_tags_for_file_name(path.clone()) else {
@@ -293,7 +298,6 @@ fn remove_tags_from_file(workspace: &mut Option<Workspace>, all_remove: bool, fi
 
     
     for simple_tag in simple {
-        println!("REUSLT IS {:?}", path);
         match workspace.remove_tag_from_file(path.clone(), simple_tag.clone(), None) {
             Ok(_) => (),
             Err(error) => {
@@ -317,31 +321,44 @@ fn remove_tags_from_file(workspace: &mut Option<Workspace>, all_remove: bool, fi
     }
 }
 
-fn show_tags_for_file(workspace: &Option<Workspace>, file_name: &String) {
+fn show_tags_for_file(workspace: &Option<Workspace>, file_names: &Vec<String>) {
     let Some(workspace) = workspace else {
         // TODO - error out
         return;
     };
 
-    let path = PathBuf::from(file_name);
-    // TODO - validate
-
-    let Ok(tags) = workspace.get_tags_for_file_name(path.clone()) else {
-        // TODO - error out
-        return;
-    };
-
-    let str_vec: Vec<String> = tags.iter().map(|tag| {
-        match tag {
-            tagcore::Tag::Simple(s) => s.to_owned(),
-            tagcore::Tag::KV(k,v) => k.to_string() + ": " + v,
+    for file_name in file_names {        
+        let path = PathBuf::from(".").join(file_name);
+        if !path.exists() {
+            // TODO - validate?
         }
-    }).collect();
+        
+        let Ok(tags) = workspace.get_tags_for_file_name(path.clone()) else {
+            // TODO - error out
+            return;
+        };
 
-    println!("{}", str_vec.join(", "));
+        if tags.is_empty() {
+            continue;
+        }
+        
+        let str_vec: Vec<String> = tags.iter().map(|tag| {
+            let text: String = match tag {
+                tagcore::Tag::Simple(s) => s.to_owned(),
+                tagcore::Tag::KV(k,v) => k.to_owned() + ": " + v,
+            };
+
+            String::from("[") + &text + "]"
+        }).collect();
+        
+        if file_names.len() == 1 {
+            println!("{}", str_vec.join(" "));
+        } else {
+            println!("{} -- {}",file_name, str_vec.join(" "));
+        }
+    }
 }
 
-// TODO - fix query problem...
 fn search(workspace: &Option<Workspace>, search_args: &SearchArgs) {
     let Some(workspace) = workspace else {
         // TODO - error out
@@ -367,13 +384,15 @@ fn search(workspace: &Option<Workspace>, search_args: &SearchArgs) {
 
     for file_path in keys {
         let str_vec: Vec<String> = map.get(&file_path).unwrap().iter().map(|tag| {
-            match tag {
+            let text: String = match tag {
                 tagcore::Tag::Simple(s) => s.to_owned(),
-                tagcore::Tag::KV(k,v) => k.to_string() + ": " + v,
-            }
+                tagcore::Tag::KV(k,v) => k.to_owned() + ": " + v,
+            };
+
+            String::from("[") + &text + "]"
         }).collect();
 
-        println!("{} -- {}", file_path, str_vec.join(", "));
+        println!("{} -- {}", file_path, str_vec.join(" "));
     }
 }
 
