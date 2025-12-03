@@ -15,7 +15,6 @@ class TagModel(QObject):
         self.cwd = cwd
         self.current_workspace: tags.TagWorkspace | None = None
 
-        self.current_workspace = tags.TagWorkspace.open_workspace(self.cwd, "test")
         if self.current_workspace:
             self.current_workspace.scan_for_tagfiles()
         print(cwd)
@@ -61,6 +60,7 @@ class TagModel(QObject):
     
     def add_tag_to_file(self, path_to_file_name: str, tag1_to_add: str, tag2_to_add: str | None):
         if self.current_workspace == None:
+            self.sg_error_encountered.emit("No workspace is open!")
             return False
         try:
             self.current_workspace.add_tag_to_file(path_to_file_name, tag1_to_add, tag2_to_add)
@@ -71,6 +71,7 @@ class TagModel(QObject):
 
     def remove_tag_from_file(self, path_to_file_name: str, tag1_to_remove: str, tag2_to_remove: str | None):
         if self.current_workspace == None:
+            self.sg_error_encountered.emit("No workspace is open!")
             return False
         try:
             self.current_workspace.remove_tag_from_file(path_to_file_name, tag1_to_remove, tag2_to_remove)
