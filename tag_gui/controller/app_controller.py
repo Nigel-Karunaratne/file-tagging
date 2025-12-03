@@ -51,10 +51,14 @@ class AppController():
         self.query_tab.middle_root.selectionModel().selectionChanged.connect(self.query_tab.on_file_folder_selection_changed)
         self.query_tab.sg_selected_file_change.connect(self._on_queryview_selected_file_change)
 
+        self.query_file_info_widget.sg_remove_tab_button_clicked.connect(self._on_tag_btn_delete_click)
+        self.query_file_info_widget.sg_add_simple_button_clicked.connect(self._on_tag_simple_btn_add_click)
+        self.query_file_info_widget.sg_add_kv_button_clicked.connect(self._on_tag_kv_btn_add_click)
+
     def _on_tag_btn_delete_click(self, file_name, tag_t1, tag_t2):
-        print(f"tag is {file_name} || {tag_t1} | {tag_t2}")
+        # print(f"tag is {file_name} || {tag_t1} | {tag_t2}")
         rv = self.tag_model.remove_tag_from_file(file_name, tag_t1, tag_t2)
-        print(f"RV IS {rv}")
+        # print(f"RV IS {rv}")
         if rv: # If removing the tag was successful, we need to re-fresh the views manually. Signals would have helped...
             # Refresh the file explorer model, by resetting its root dir and setting it back again
             self.fs_model.set_directory(self.fs_model.current_directory, self.tag_model.get_tag_mapping_in_dir_as_strings(self.fs_model.current_directory))
@@ -62,11 +66,8 @@ class AppController():
             self.fs_model.setRootPath("")
             self.fs_model.setRootPath(root_path)
 
-            # Refresh the file info widget
-            self.explore_file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(self.explore_file_info_widget.current_file_path)
-            self.explore_file_info_widget.rebuild_tag_list()
-            self.explore_file_info_widget.update()
-            self.file_query_model.rebuild_from_mapping()
+            # Refresh the file info widget(s)
+            self.refresh_info_widgets_after_add_or_del()
     
     def _on_tag_simple_btn_add_click(self, file_name, tag_t1):
         rv = self.tag_model.add_tag_to_file(file_name, tag_t1, None)
@@ -76,11 +77,8 @@ class AppController():
             self.fs_model.setRootPath("")
             self.fs_model.setRootPath(root_path)
 
-            # Refresh the file info widget
-            self.explore_file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(self.explore_file_info_widget.current_file_path)
-            self.explore_file_info_widget.rebuild_tag_list()
-            self.explore_file_info_widget.update()
-            self.file_query_model.rebuild_from_mapping()
+            # Refresh the file info widget(s)
+            self.refresh_info_widgets_after_add_or_del()
         return
     
     def _on_tag_kv_btn_add_click(self, file_name, tag_t1, tag_t2):
@@ -91,15 +89,25 @@ class AppController():
             self.fs_model.setRootPath("")
             self.fs_model.setRootPath(root_path)
 
-            # Refresh the file info widget
+            # Refresh the file info widget(s)
+            self.refresh_info_widgets_after_add_or_del()
+        return
+
+    def refresh_info_widgets_after_add_or_del(self):
             self.explore_file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(self.explore_file_info_widget.current_file_path)
             self.explore_file_info_widget.rebuild_tag_list()
             self.explore_file_info_widget.update()
-            self.file_query_model.rebuild_from_mapping()
-        return
+
+            if self.query_file_info_widget.current_file_path != "":
+                self.query_file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(self.query_file_info_widget.current_file_path)
+                self.file_query_model.mapping = self.tag_model.do_query(self.file_query_model.last_query_params[0], self.file_query_model.last_query_params[1], self.file_query_model.last_query_params[2], self.file_query_model.last_query_params[3], self.file_query_model.last_query_params[4])
+                self.query_file_info_widget.rebuild_tag_list()
+                self.query_file_info_widget.update()
+                self.file_query_model.rebuild_from_mapping()
 
     def _on_query_entered(self, exact: bool, text: str, simple: bool, key: bool, value: bool):
         self.file_query_model.mapping = self.tag_model.do_query(exact, text, simple, key, value)
+        self.file_query_model.set_last_query_params(exact, text, simple, key, value)
         self.file_query_model.rebuild_from_mapping()
         return
     
@@ -134,6 +142,7 @@ class AppController():
         if info == None:
             return
         icon = self.file_query_model.get_icon_from_info(info)
+        self.query_file_info_widget.current_file_path = info.filePath()
         self.query_file_info_widget.set_selected(index, icon, info.fileName(), info.filePath(), info.size(), info.lastModified().toString())
         self.query_file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(info.filePath())
         self.query_file_info_widget.rebuild_tag_list()

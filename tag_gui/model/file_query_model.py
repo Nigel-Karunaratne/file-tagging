@@ -12,6 +12,11 @@ class FileQueryModel(QStandardItemModel):
         self._icon_provider = QFileIconProvider()
         self.setHeaderData(0, Qt.Orientation.Horizontal, "Name")
         self.setHeaderData(0, Qt.Orientation.Horizontal, "Tags")
+        
+        self.last_query_params = [True, "", False, False, False]
+
+    def set_last_query_params(self, exact, text, simple, key, value):
+        self.last_query_params = [exact, text, simple, key, value]
 
     def headerData(self, section: int, orientation: Qt.Orientation, /, role: int = Qt.ItemDataRole.DisplayRole):
         if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
