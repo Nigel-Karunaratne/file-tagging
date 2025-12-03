@@ -112,6 +112,7 @@ class MainWindow(QWidget):
 class FilesTab(QWidget):
     sg_file_folder_doubleclick = Signal(QModelIndex)
     sg_directory_up_btn_click = Signal()
+    sg_refresh_btn_click = Signal()
     sg_selected_file_change = Signal(QModelIndex)
 
     def __init__(self):
@@ -120,14 +121,19 @@ class FilesTab(QWidget):
 
         # ** NAV BAR ** #
         nav_bar = QHBoxLayout()
-        up_btn = QPushButton("Up")
+        up_btn = QPushButton(" Up")
         up_btn.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.GoUp))
-        up_btn.clicked.connect(self._on_directory_up_btn_clicked)
+        up_btn.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
+        up_btn.clicked.connect(lambda _: self.sg_directory_up_btn_click.emit())
         nav_bar.addWidget(up_btn)
+        refresh_btn = QPushButton(" Refresh")
+        refresh_btn.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.ViewRefresh))
+        refresh_btn.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
+        refresh_btn.clicked.connect(lambda: self.sg_refresh_btn_click.emit())
+        nav_bar.addWidget(refresh_btn)
         self.workspace_name_label = QLabel("...")
-        self.workspace_name_label.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self.workspace_name_label.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Fixed)
         self.workspace_name_label.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
-        # self.set_workspace_name_label(tag_model)
         nav_bar.addWidget(self.workspace_name_label)
         layout.addLayout(nav_bar)
         
@@ -191,12 +197,7 @@ class FilesTab(QWidget):
 
     def _on_file_folder_double_click(self, index: QModelIndex):
         self.sg_file_folder_doubleclick.emit(index)
-        return
-    
-    def _on_directory_up_btn_clicked(self):
-        self.sg_directory_up_btn_click.emit()
-        return
-        
+        return 
 
 class FileInfoWidget(QWidget):
     sg_remove_tab_button_clicked = Signal(str, str, object)
@@ -382,8 +383,8 @@ class QuerySearchArea(QWidget):
         exact_fuzzy_group = QGroupBox()
         exact_fuzzy_group_layout = QHBoxLayout()
         self.exact_radio_btn = QRadioButton("Exact")
-        self.exact_radio_btn.setChecked(True)
         self.fuzzy_radio_btn = QRadioButton("Fuzzy")
+        self.fuzzy_radio_btn.setChecked(True)
         exact_fuzzy_group_layout.addWidget(self.exact_radio_btn)
         exact_fuzzy_group_layout.addWidget(self.fuzzy_radio_btn)
         exact_fuzzy_group.setLayout(exact_fuzzy_group_layout)

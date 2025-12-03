@@ -37,6 +37,7 @@ class AppController():
 
         self.files_tab.sg_file_folder_doubleclick.connect(self._on_explorerview_doubleclick)
         self.files_tab.sg_directory_up_btn_click.connect(self._on_exploreview_upbtn_click)
+        self.files_tab.sg_refresh_btn_click.connect(self._on_exploreview_refreshbtn_click)
         self.files_tab.sg_selected_file_change.connect(self._on_exploreview_selected_file_change)
 
         self.explore_file_info_widget.sg_remove_tab_button_clicked.connect(self._on_tag_btn_delete_click)
@@ -124,6 +125,13 @@ class AppController():
         self.fs_model.attempt_to_go_up()
         return
     
+    def _on_exploreview_refreshbtn_click(self):
+        print("refreshing")
+        root_path = self.fs_model.rootPath()
+        self.fs_model.setRootPath("")
+        self.fs_model.setRootPath(root_path)
+        return
+
     def _on_fsmodel_directorychange(self, parent_dir: str):
         mapping = self.tag_model.get_tag_mapping_in_dir_as_strings(parent_dir)
         print(f"mapping is {mapping}")
