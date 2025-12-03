@@ -117,6 +117,8 @@ class AppController():
         if not is_file:
             self.fs_model.set_directory(dir_path, self.tag_model.get_tag_mapping_in_dir_as_strings(dir_path))
             self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(dir_path))
+
+            self.files_tab.set_info_to_placeholder()
     
     def _on_exploreview_upbtn_click(self):
         self.fs_model.attempt_to_go_up()
@@ -127,6 +129,8 @@ class AppController():
         print(f"mapping is {mapping}")
         self.fs_model.set_directory(parent_dir, mapping)
         self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(parent_dir))
+
+        self.files_tab.set_info_to_placeholder()
         return
 
     def _on_exploreview_selected_file_change(self, index):
