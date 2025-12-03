@@ -36,7 +36,7 @@ class TagModel(QObject):
                 else:
                     tags_as_list.append(f"{tag.kv_key}: {tag.kv_value}")
             print(tags_as_list)
-            return_val[entry] = ", ".join(tags_as_list)
+            return_val[entry] = " ".join(f"[{t}]" for t in tags_as_list)
         
         # print(f"DONE get_tag_mapping_in_dir_as_strings: {path_to_directory}")
         return return_val
@@ -117,5 +117,5 @@ class TagModel(QObject):
                     tag_strs.append(tag.simple_value)
                 else:
                     tag_strs.append(f"{tag.kv_key}: {tag.kv_value}")
-            rv[key] = ",".join(tag_strs)
+            rv[key] = " ".join(f"[{t}]" for t in tag_strs)
         return rv
