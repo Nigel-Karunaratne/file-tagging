@@ -18,7 +18,8 @@ pub struct Workspace {
 
 // Public functions
 impl Workspace {
-    /// Attempts to open a workspace given a directory (a folder) and a workspace name. If no workspace exists in the directory, errors. Validates the workspace name
+    /// Attempts to open a workspace given a directory (a folder) and a workspace name. If no workspace exists in the directory, errors. Validates the workspace name.
+    /// Once a workspace is opened, it does not automatically scan for TagFiles.
     pub fn open_workspace(directory: PathBuf, name: &String) -> Result<Workspace, WorkspaceError> {
         if !Workspace::is_name_valid(&name) {
             return Err(WorkspaceError::InvalidName(name.clone()));
@@ -41,6 +42,7 @@ impl Workspace {
     }
 
     /// Attempts to create a workspace given a directory (a folder) and a workspace name. If a same-named workspace exists in the directory, errors. Validates the workspace name
+    /// Once a workspace is opened, it does not automatically scan for TagFiles.
     pub fn create_workspace(directory: PathBuf, name: &String) -> Result<Workspace, WorkspaceError>{
         if !Workspace::is_name_valid(&name) {
             return Err(WorkspaceError::InvalidName(name.clone()));
@@ -84,15 +86,14 @@ impl Workspace {
         }
     }
 
-    /// Adds the given string(s) as a tag to a file.
+    /// Adds the given string(s) as a tag to a file. THe file must be within the workspace's directory or a subdirectory.
     pub fn add_tag_to_file(&mut self, path_to_file: PathBuf, tag_1: String, tag_2: Option<String>) -> Result<(), TagFileError> {
-        // println!("START: adding tag to a file");
-        // println!("This is the pathbuf: {:?}", path_to_file);
         let parent_dir: &Path = path_to_file.parent().ok_or(TagFileError::BadPath("Invalid Path, parent dir".to_string()))?;
-        // let full_parent_dir = std::path::absolute(parent_dir).map_err(|_| TagFileError::BadPath("Invalid Path, canonical dir".to_string()))?;
         let full_parent_dir = parent_dir.canonicalize().map_err(|_| TagFileError::BadPath("Invalid Path, canonical dir".to_string()))?;
-        
-        // let file_name = path_to_file.file_name().ok_or(TagAddError::InvalidPath())?;
+
+        if full_parent_dir.strip_prefix(&self.root_folder).is_err() {
+            return Err(TagFileError::BadPath("Path not within workspace".to_string()));
+        }
 
         let tag: Tag = if tag_2.is_none() {
             Tag::Simple(tag_1.clone()) //clone so that tag_cache can update with original strings
@@ -125,6 +126,12 @@ impl Workspace {
     /// Removes the given string(s) as a tag from a file. If the file does not have the tag/any tags, does nothing.
     pub fn remove_tag_from_file(&mut self, path_to_file: PathBuf, tag_1: String, tag_2: Option<String>) -> Result<(), TagFileError> {
         let parent_dir: &Path = path_to_file.parent().ok_or(TagFileError::BadPath("Invalid Path".to_string()))?;
+        let parent_dir_cannonical = parent_dir.canonicalize().map_err(|_| TagFileError::BadPath("Invalid Path, canonical dir".to_string()))?;
+
+        if parent_dir_cannonical.strip_prefix(&self.root_folder).is_err() {
+            return Err(TagFileError::BadPath("Path not within workspace".to_string()));
+        }
+
         let tag: Tag = if tag_2.is_none() {
             Tag::Simple(tag_1.clone()) //clone so that tag_cache can update with original strings
         }
@@ -132,7 +139,6 @@ impl Workspace {
             Tag::KV(tag_1.clone(), tag_2.clone().unwrap())
         };
 
-        let parent_dir_cannonical = parent_dir.canonicalize().map_err(|_| TagFileError::BadPath("Invalid Path, canonical dir".to_string()))?;
         // If tagfile exists, attempt to remove tag. If no tagfile, silently do nothing.
         if let Some(tf) = self.all_tagfiles.get_mut(&parent_dir_cannonical.join(Workspace::get_tagfile_file_name(&self.name))) {
             tf.remove_tag_from_file_in_self(&path_to_file, &tag)?;
@@ -150,7 +156,6 @@ impl Workspace {
 
         let path_to_tagfile = &full_parent_dir.join(Workspace::get_tagfile_file_name(&self.name));
         if let Some(t) = self.all_tagfiles.get(path_to_tagfile) {
-            // println!("    GET TAGS FOR FILE NAME: SUPER IN");
             Ok(t.get_all_tags_for_filename(&file_name))
         }
         else {
@@ -194,7 +199,7 @@ impl Workspace {
                 });
                 if tag_in {
                     vec = tags.clone();
-                            }
+                }
 
                 if !vec.is_empty() {
                     let used_file_path = parent_dir_path.join(Path::new(&file_name)).to_string_lossy().into_owned();
@@ -219,7 +224,7 @@ impl Workspace {
                 continue;
             };
             let parent_dir_path = Path::new(".").join(parent_dir_name);
-
+            
             for (file_name,tags) in tf.get_mapping_ref() {
                 let mut vec: Vec<Tag>= Vec::new();
 
@@ -231,7 +236,7 @@ impl Workspace {
                 });
                 if tag_in {
                     vec = tags.clone();
-                            }
+                }
 
                 if !vec.is_empty() {
                     let used_file_path = parent_dir_path.join(Path::new(&file_name)).to_string_lossy().into_owned();
@@ -241,7 +246,7 @@ impl Workspace {
         }
         rv
     }
-    
+
     /// Attempts to find (and create) a workspace.
     pub fn discover_workspace_above(path: &Path, name: String) -> Option<Workspace> {
         if !Workspace::is_name_valid(&name) {
@@ -357,7 +362,7 @@ mod tests {
         let path = root_dir.path().join(".tagwksp_supertest");
         let result = Workspace::create_workspace_file(&path);
         assert!(result.is_ok());
-        
+
         let result = Workspace::create_workspace_file(&path); //same file name = same workspace name
         assert!(result.is_err());
     }
@@ -437,6 +442,20 @@ mod tests {
         assert!(result.is_err());
         let result = workspace.add_tag_to_file(path.clone(), " ".to_string(), Some("value".to_string()));
         assert!(result.is_err());
+
+        // TEST for cannot add tags to file not in workspace
+        std::fs::create_dir(root_dir_path.join("other_subfolder/") ).unwrap();
+        let _file_three: File = File::create(root_dir_path.join("other_subfolder/three.txt")).unwrap(); 
+        let mut workspace2 = Workspace::create_workspace(root_dir_path.join("other_subfolder"), &"testspace2".to_string()).unwrap();
+
+        let result = workspace2.add_tag_to_file(root_dir_path.join("other_subfolder/three.txt"), "qe".to_string(), None);
+        assert!(result.is_ok());
+        let result = workspace2.add_tag_to_file(root_dir_path.join("file1.txt"), "qe".to_string(), None);
+        assert!(result.is_err());
+        assert!(matches!(result.err().unwrap(), TagFileError::BadPath(_)));
+        let result = workspace2.add_tag_to_file(root_dir_path.join("subfolder/nested.txt"), "qe".to_string(), None);
+        assert!(result.is_err());
+        assert!(matches!(result.err().unwrap(), TagFileError::BadPath(_)));
     }
 
     #[test]
@@ -554,6 +573,20 @@ mod tests {
         assert!(result.is_ok());
         let result = workspace.get_tags_for_file_name(root_dir_path.join("./subfolder/nested.txt")).unwrap();
         assert!(result.is_empty());
+
+        // TEST for cannot remove tags from file not in workspace
+        std::fs::create_dir(root_dir_path.join("other_subfolder/") ).unwrap();
+        let _file_three: File = File::create(root_dir_path.join("other_subfolder/three.txt")).unwrap(); 
+        let mut workspace2 = Workspace::create_workspace(root_dir_path.join("other_subfolder"), &"testspace2".to_string()).unwrap();
+
+        let result = workspace2.remove_tag_from_file(root_dir_path.join("other_subfolder/three.txt"), "qe".to_string(), None);
+        assert!(result.is_ok());
+        let result = workspace2.remove_tag_from_file(root_dir_path.join("file1.txt"), "qe".to_string(), None);
+        assert!(result.is_err());
+        assert!(matches!(result.err().unwrap(), TagFileError::BadPath(_)));
+        let result = workspace2.remove_tag_from_file(root_dir_path.join("subfolder/nested.txt"), "qe".to_string(), None);
+        assert!(result.is_err());
+        assert!(matches!(result.err().unwrap(), TagFileError::BadPath(_)));
     }
 
     #[test]
