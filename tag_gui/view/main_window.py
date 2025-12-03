@@ -97,7 +97,7 @@ class MainWindow(QWidget):
             self.sg_open_workspace_request.emit(workspace_name_edit.text())
         return
 
-    def show_workspace_action_fail_message(self, title, text):
+    def show_error_dialogue(self, title, text):
         dialogue = QDialog(parent=self)
         dialogue.setWindowTitle(title)
         layout = QVBoxLayout(dialogue)

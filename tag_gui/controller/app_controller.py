@@ -18,6 +18,8 @@ class AppController():
         self.main_window = view
 
         self.fs_model.set_directory(self.fs_model.current_directory, self.tag_model.get_tag_mapping_in_dir_as_strings(self.fs_model.current_directory))
+        
+        self.tag_model.sg_error_encountered.connect(self._on_tagmodel_error_encounter)
 
         view.sg_quit_app_request.connect(lambda: app.quit())
         view.sg_create_workspace_request.connect(self._on_mainwindow_create_workspace_request)
@@ -141,6 +143,10 @@ class AppController():
         self.files_tab.set_info_to_placeholder()
         return
 
+    def _on_tagmodel_error_encounter(self, error_msg: str):
+        self.main_window.show_error_dialogue("An error occured", error_msg)
+        return
+
     def _on_exploreview_selected_file_change(self, index):
         self.explore_file_info_widget.set_selected(index, self.fs_model.fileIcon(index), self.fs_model.fileName(index), self.fs_model.filePath(index), self.fs_model.size(index), self.fs_model.lastModified(index).toString())
         self.explore_file_info_widget.tags = self.tag_model.get_tags_for_filename_as_list(self.fs_model.filePath(index))
@@ -168,7 +174,7 @@ class AppController():
         try:
             self.tag_model.create_and_set_workspace(self.fs_model.current_directory, requested_name)
         except Exception:
-            self.main_window.show_workspace_action_fail_message("Cannot create workspace", "The workspace could not be created.")
+            self.main_window.show_error_dialogue("Cannot create workspace", "The workspace could not be created.")
             return
         self.files_tab.set_info_to_placeholder()
 
@@ -184,7 +190,7 @@ class AppController():
         try:
             self.tag_model.open_and_set_workspace(self.fs_model.current_directory, requested_name)
         except Exception:
-            self.main_window.show_workspace_action_fail_message("Cannot open workspace", "The workspace could not be opened.")
+            self.main_window.show_error_dialogue("Cannot open workspace", "The workspace could not be opened.")
             return
         self.files_tab.set_info_to_placeholder()
 

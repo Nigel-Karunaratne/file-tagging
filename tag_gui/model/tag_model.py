@@ -8,6 +8,7 @@ from PySide6.QtCore import Signal, QObject
 class TagModel(QObject):
     # sg_tag_info_changed = Signal()
     sg_workspace_name_change = Signal(str)
+    sg_error_encountered = Signal(str)
 
     def __init__(self, cwd):
         super().__init__()
@@ -63,7 +64,8 @@ class TagModel(QObject):
             return False
         try:
             self.current_workspace.add_tag_to_file(path_to_file_name, tag1_to_add, tag2_to_add)
-        except Exception:
+        except Exception as e:
+            self.sg_error_encountered.emit(str(e))
             return False
         return True
 
@@ -72,7 +74,8 @@ class TagModel(QObject):
             return False
         try:
             self.current_workspace.remove_tag_from_file(path_to_file_name, tag1_to_remove, tag2_to_remove)
-        except Exception:
+        except Exception as e:
+            self.sg_error_encountered.emit(str(e))
             return False
         return True
         
