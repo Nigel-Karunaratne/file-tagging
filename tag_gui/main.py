@@ -1,5 +1,6 @@
 import sys
 import os
+import pathlib
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon
@@ -33,7 +34,9 @@ def main():
     query_model = FileQueryModel()
     fs_model = FileExplorerModel(app_cwd)
 
-    controller = AppController(app, fs_model, tag_model, query_model, view)
+    script_file_path = pathlib.Path(__file__).parent.resolve()
+
+    controller = AppController(script_file_path, app, fs_model, tag_model, query_model, view)
     
     # Show window
     view.show()

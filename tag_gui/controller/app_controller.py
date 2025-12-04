@@ -5,8 +5,13 @@ from view.main_window import MainWindow, FileInfoWidget, FilesTab, QueryTab
 
 from PySide6.QtWidgets import QApplication
 
+from configparser import ConfigParser
+
 class AppController():
-    def __init__(self, app: QApplication, fs_model: FileExplorerModel, tag_model: TagModel, file_query_model: FileQueryModel, view: MainWindow):
+    def __init__(self, script_dir, app: QApplication, fs_model: FileExplorerModel, tag_model: TagModel, file_query_model: FileQueryModel, view: MainWindow):
+        self.script_dir = script_dir
+        start_wrkspname = self.get_workspace_name_from_conf()
+
         self.fs_model = fs_model
         self.tag_model = tag_model
         self.file_query_model = file_query_model
@@ -16,6 +21,12 @@ class AppController():
         self.query_tab = view.query_tab
 
         self.main_window = view
+
+        if start_wrkspname:
+            try:
+                self.tag_model.open_and_set_workspace(tag_model.cwd, start_wrkspname)
+            except Exception:
+                pass
 
         self.fs_model.set_directory(self.fs_model.current_directory, self.tag_model.get_tag_mapping_in_dir_as_strings(self.fs_model.current_directory))
         
@@ -115,7 +126,6 @@ class AppController():
         return
     
     def _on_explorerview_doubleclick(self, index):
-        print("something was double clicked")
         is_file, dir_path = self.fs_model.open_file_info_from_index(index)
         if not is_file:
             self.fs_model.set_directory(dir_path, self.tag_model.get_tag_mapping_in_dir_as_strings(dir_path))
@@ -128,7 +138,6 @@ class AppController():
         return
     
     def _on_exploreview_refreshbtn_click(self):
-        print("refreshing")
         root_path = self.fs_model.rootPath()
         self.fs_model.setRootPath("")
         self.fs_model.setRootPath(root_path)
@@ -136,7 +145,6 @@ class AppController():
 
     def _on_fsmodel_directorychange(self, parent_dir: str):
         mapping = self.tag_model.get_tag_mapping_in_dir_as_strings(parent_dir)
-        print(f"mapping is {mapping}")
         self.fs_model.set_directory(parent_dir, mapping)
         self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(parent_dir))
 
@@ -155,7 +163,6 @@ class AppController():
         return
     
     def _on_queryview_selected_file_change(self, index):
-        print("WE ARE HERE!")
         info = self.file_query_model.get_file_info_from_index(index)
         if info == None:
             return
@@ -184,6 +191,7 @@ class AppController():
         self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(self.fs_model.current_directory))
 
         self.file_query_model.clear()
+        self.save_workspace_name_to_config(self.tag_model.get_workspace_name())
         return
 
     def _on_mainwindow_open_workspace_request(self, requested_name: str):
@@ -199,4 +207,18 @@ class AppController():
         self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(self.fs_model.current_directory))
 
         self.file_query_model.clear()
+        self.save_workspace_name_to_config(self.tag_model.get_workspace_name())
+        return
+    
+    def get_workspace_name_from_conf(self) -> str | None:
+        conf = ConfigParser()
+        conf.read(self.script_dir / 'config.ini')
+        return conf.get('app', 'starting_workspace_name', fallback=None)
+
+    def save_workspace_name_to_config(self, name: str):
+        conf = ConfigParser()
+        conf["app"] = { "starting_workspace_name": name }
+
+        with open(self.script_dir / 'config.ini', 'wt') as conf_file:
+            conf.write(conf_file)
         return
