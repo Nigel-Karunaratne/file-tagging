@@ -33,10 +33,11 @@ class MainWindow(QWidget):
         menu_bar = QMenuBar()
         
         file_menu = menu_bar.addMenu("File")
-        newAction = QAction(QIcon.fromTheme(QIcon.ThemeIcon.ApplicationExit), "&Quit", self)
-        newAction.setStatusTip("Exits the application")
-        newAction.triggered.connect(lambda: self.sg_quit_app_request.emit())
-        file_menu.addAction(newAction)
+        quitAction = QAction(QIcon.fromTheme(QIcon.ThemeIcon.ApplicationExit), "&Quit", self)
+        quitAction.setStatusTip("Exits the application")
+        quitAction.setShortcut("Ctrl+W")
+        quitAction.triggered.connect(lambda: self.sg_quit_app_request.emit())
+        file_menu.addAction(quitAction)
 
         workspace_menu = menu_bar.addMenu("Workspaces")
         create_action = QAction(QIcon.fromTheme(QIcon.ThemeIcon.DocumentNew), "&Create Workspace", self)
