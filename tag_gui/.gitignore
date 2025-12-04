@@ -1,2 +1,7 @@
 __pycache__
 config.ini
+
+# For bundling using pyinstaller
+build/
+dist/
+*.spec

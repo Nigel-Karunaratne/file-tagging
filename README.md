@@ -12,9 +12,15 @@ A project for file tagging, consisting of:
 
 - Clone the repo
 - Create a python virtual environment
-- Install the following `pip` packages:
+- Install the following `pip` packages inside the virtual environment:
     - maturin
     - pyinstall
     - PySide6
+    - pyinstaller (only for packaging to an executable)
 
-To create the bindings in tagbinding_py, run `maturin develop`.
+Running `cargo build` in the root directory will build:
+- The Rust library
+- The CLI app
+
+To create the Python bindings, run `maturin develop` inside of `tagbind_py`. This will also install the bindings (as `rs_tags`) in the virtual environment
+
