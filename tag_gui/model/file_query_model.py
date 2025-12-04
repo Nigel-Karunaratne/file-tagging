@@ -30,9 +30,8 @@ class FileQueryModel(QStandardItemModel):
     def rebuild_from_mapping(self):
         self.clear()
         self.beginResetModel()
-        print(f"  Tags list is {self.mapping}")
+        # print(f"  Tags list is {self.mapping}")
         for path, tags in self.mapping.items():
-            print(f"   path is {path}, tags is {tags}")
             info = QFileInfo(path)
 
             name = QStandardItem(info.fileName())

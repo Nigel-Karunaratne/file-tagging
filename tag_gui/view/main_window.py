@@ -163,7 +163,8 @@ class FilesTab(QWidget):
         header.setSectionResizeMode(1,QHeaderView.ResizeMode.ResizeToContents)
         header.setMinimumSectionSize(50)
         self.left_file_hierarchy.setColumnWidth(0, 250)
-        self.left_file_hierarchy.doubleClicked.connect(self._on_file_folder_double_click)
+        # self.left_file_hierarchy.doubleClicked.connect(self._on_file_folder_double_click)
+        self.left_file_hierarchy.activated.connect(self._on_file_folder_double_click) #works w/ double click, enter key
 
         # ** ROOT SPLITTER ** #
         splitter_root = QSplitter(Qt.Orientation.Horizontal)

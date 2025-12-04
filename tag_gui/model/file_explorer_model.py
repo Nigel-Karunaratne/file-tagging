@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt, QAbstractItemModel, QModelIndex, QPersistentModelIndex, Signal
-from PySide6.QtWidgets import QApplication, QTreeView, QVBoxLayout, QWidget, QFileSystemModel
+from PySide6.QtWidgets import QApplication, QTreeView, QVBoxLayout, QWidget, QFileSystemModel, QFileIconProvider
 
 import os, sys, subprocess
 
@@ -40,10 +40,11 @@ class FileExplorerModel(QFileSystemModel):
         return super().headerData(section, orientation, role)
 
     def set_directory(self, new_directory_path, mapping: dict):
-        print(f"CHANIGN PATHS (mapping IS {mapping})")
+        # print(f"CHANIGN PATHS (mapping IS {mapping})")
         self.current_directory = new_directory_path
         self.current_dir_tags = mapping
         self.setRootPath(new_directory_path)
+        self.setIconProvider(QFileIconProvider())
     
     # Returns (FALSE, directory_path) if DIRECTORY, TRUE,"" if FILE
     def open_file_info_from_index(self, index) -> tuple[bool, str]:
