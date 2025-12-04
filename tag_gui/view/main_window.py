@@ -325,7 +325,8 @@ class QueryTab(QWidget):
         header.setSectionResizeMode(0,QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(1,QHeaderView.ResizeMode.ResizeToContents)
         header.setMinimumSectionSize(50)
-        self.middle_root.doubleClicked.connect(self._on_file_folder_double_click)
+        # self.middle_root.doubleClicked.connect(self._on_file_folder_double_click)
+        self.middle_root.activated.connect(self._on_file_folder_double_click)
         # ** RIGHT - FILE INFO ** #
         self.right_root_stack = QStackedWidget()
         scroll_area = QScrollArea()

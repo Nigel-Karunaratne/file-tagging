@@ -70,9 +70,7 @@ class AppController():
         self.query_file_info_widget.sg_add_kv_button_clicked.connect(self._on_tag_kv_btn_add_click)
 
     def _on_tag_btn_delete_click(self, file_name, tag_t1, tag_t2):
-        # print(f"tag is {file_name} || {tag_t1} | {tag_t2}")
         rv = self.tag_model.remove_tag_from_file(file_name, tag_t1, tag_t2)
-        # print(f"RV IS {rv}")
         if rv: # If removing the tag was successful, we need to re-fresh the views manually. Signals would have helped...
             # Refresh the file explorer model, by resetting its root dir and setting it back again
             self.fs_model.set_directory(self.fs_model.current_directory, self.tag_model.get_tag_mapping_in_dir_as_strings(self.fs_model.current_directory))
@@ -191,6 +189,7 @@ class AppController():
         self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(self.fs_model.current_directory))
 
         self.file_query_model.clear()
+        self.file_query_model.set_workspace_dir(self.tag_model.cwd)
         self.save_workspace_name_to_config(self.tag_model.get_workspace_name())
         return
 
@@ -207,6 +206,7 @@ class AppController():
         self.files_tab.left_file_hierarchy.setRootIndex(self.fs_model.index(self.fs_model.current_directory))
 
         self.file_query_model.clear()
+        self.file_query_model.set_workspace_dir(self.tag_model.cwd)
         self.save_workspace_name_to_config(self.tag_model.get_workspace_name())
         return
     

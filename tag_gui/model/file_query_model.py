@@ -9,6 +9,7 @@ class FileQueryModel(QStandardItemModel):
     def __init__(self):
         super().__init__()
         self.mapping = dict()
+        self.workspace_dir = ""
         self._icon_provider = QFileIconProvider()
         self.setHeaderData(0, Qt.Orientation.Horizontal, "Name")
         self.setHeaderData(0, Qt.Orientation.Horizontal, "Tags")
@@ -17,6 +18,9 @@ class FileQueryModel(QStandardItemModel):
 
     def set_last_query_params(self, exact, text, simple, key, value):
         self.last_query_params = [exact, text, simple, key, value]
+
+    def set_workspace_dir(self, new_dir):
+        self.workspace_dir = new_dir
 
     def headerData(self, section: int, orientation: Qt.Orientation, /, role: int = Qt.ItemDataRole.DisplayRole):
         if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
@@ -32,7 +36,9 @@ class FileQueryModel(QStandardItemModel):
         self.beginResetModel()
         # print(f"  Tags list is {self.mapping}")
         for path, tags in self.mapping.items():
-            info = QFileInfo(path)
+            # Paths are relative to the workspace's CWD, so need to join
+            path_c = os.path.join(self.workspace_dir, path)
+            info = QFileInfo(path_c)
 
             name = QStandardItem(info.fileName())
             name.setEditable(False)

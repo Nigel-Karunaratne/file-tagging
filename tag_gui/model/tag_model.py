@@ -17,10 +17,8 @@ class TagModel(QObject):
 
         if self.current_workspace:
             self.current_workspace.scan_for_tagfiles()
-        print(cwd)
 
     def get_tag_mapping_in_dir_as_strings(self, path_to_directory: str) -> Dict[str, str]:
-        # print(f"START get_tag_mapping_in_dir_as_strings: {path_to_directory}")
         if self.current_workspace == None:
             return {}
         return_val = {}
@@ -35,10 +33,7 @@ class TagModel(QObject):
                     tags_as_list.append(tag.simple_value)
                 else:
                     tags_as_list.append(f"{tag.kv_key}: {tag.kv_value}")
-            print(tags_as_list)
             return_val[entry] = " ".join(f"[{t}]" for t in tags_as_list)
-        
-        # print(f"DONE get_tag_mapping_in_dir_as_strings: {path_to_directory}")
         return return_val
     
     def get_tags_for_filename_as_list(self, path_to_file_name: str) -> list:
@@ -88,7 +83,6 @@ class TagModel(QObject):
     def open_and_set_workspace(self, new_cwd, workspace_name) -> bool:
         wksp = tags.TagWorkspace.open_workspace(new_cwd, workspace_name)
         if wksp != None:
-            print(f" NEW open workspace {workspace_name}")
             self.current_workspace = wksp
             self.cwd = new_cwd
             self.current_workspace.scan_for_tagfiles()
@@ -100,7 +94,6 @@ class TagModel(QObject):
     def create_and_set_workspace(self, new_cwd, workspace_name) -> bool:
         wksp = tags.TagWorkspace.create_workspace(new_cwd, workspace_name)
         if wksp != None:
-            print(f" NEW create workspace {workspace_name}")
             self.current_workspace = wksp
             self.cwd = new_cwd
             self.current_workspace.scan_for_tagfiles()
